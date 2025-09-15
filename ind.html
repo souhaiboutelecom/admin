@@ -1,0 +1,3081 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOUHAIBOU TÉLÉCOM - Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --primary: #1428A0;
+            --secondary: #FF6B00;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --gray: #6c757d;
+            --light-gray: #e9ecef;
+            --white: #ffffff;
+            --sidebar-width: 250px;
+            --header-height: 60px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fb;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--primary);
+            color: white;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.2rem;
+            margin-top: 10px;
+        }
+
+        .sidebar-menu {
+            padding: 15px 0;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .menu-item.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-left: 4px solid var(--secondary);
+        }
+
+        .menu-item i {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .notification-badge {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .notification-badge i {
+            font-size: 1.2rem;
+            color: var(--gray);
+        }
+
+        .badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Dashboard Cards */
+        .dashboard-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            color: var(--gray);
+        }
+
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .card-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .card-footer {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        /* Charts */
+        .charts-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        /* Tables */
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background-color: var(--light);
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            display: none;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Login Screen */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary) 0%, #1a3ac5 100%);
+            padding: 20px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-logo h1 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-top: 10px;
+        }
+
+        /* Utilities */
+        .text-center {
+            text-align: center;
+        }
+
+        .text-success {
+            color: var(--success);
+        }
+
+        .text-danger {
+            color: var(--danger);
+        }
+
+        .text-warning {
+            color: var(--warning);
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 70px;
+                overflow: visible;
+            }
+
+            .sidebar-header h2, .menu-item span {
+                display: none;
+            }
+
+            .menu-item {
+                justify-content: center;
+                padding: 15px;
+            }
+
+            .menu-item i {
+                margin-right: 0;
+            }
+
+            .main-content {
+                margin-left: 70px;
+            }
+
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+        }
+
+        /* Page specific styles */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        .filter-bar {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            position: relative;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .product-image {
+            height: 180px;
+            background-color: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .product-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .product-info {
+            padding: 15px;
+        }
+
+        .product-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .product-price {
+            color: var(--primary);
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .product-stock {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stock-badge {
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .stock-low {
+            background: #fff0f0;
+            color: var(--danger);
+        }
+
+        .stock-medium {
+            background: #fff9eb;
+            color: var(--warning);
+        }
+
+        .stock-high {
+            background: #f0f9f0;
+            color: var(--success);
+        }
+
+        .order-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 20px;
+            padding-left: 45px;
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            font-size: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray);
+        }
+
+        .product-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .product-action-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+
+        .image-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .preview-image {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .specs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .security-prompt {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .notification-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .notification-item:hover {
+            background: #f9f9f9;
+        }
+
+        .notification-item.unread {
+            background: #f0f9ff;
+        }
+
+        .export-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-page" class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <i class="fas fa-store" style="font-size: 3rem; color: var(--primary);"></i>
+                <h1>SOUHAIBOU TÉLÉCOM</h1>
+                <p>Espace Administrateur</p>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mot de passe</label>
+                <input type="password" id="login-password" class="form-control" placeholder="Entrez le mot de passe">
+            </div>
+            <button id="login-btn" class="btn btn-primary" style="width: 100%;">Se connecter</button>
+            <p id="login-error" class="text-danger" style="margin-top: 15px; display: none;">Mot de passe incorrect</p>
+        </div>
+    </div>
+
+    <!-- Security Prompt Modal -->
+    <div class="modal-overlay" id="security-prompt-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Vérification de sécurité</div>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Mot de passe de sécurité</label>
+                    <input type="password" id="security-password" class="form-control" placeholder="Entrez le mot de passe de sécurité">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="confirm-security-btn">Confirmer</button>
+                <button class="btn btn-secondary" id="cancel-security-btn">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app-container" class="app-container hidden">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-store" style="font-size: 2rem;"></i>
+                <h2>SOUHAIBOU TÉLÉCOM</h2>
+            </div>
+            <div class="sidebar-menu">
+                <div class="menu-item active" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Tableau de bord</span>
+                </div>
+                <div class="menu-item" data-page="orders">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Commandes</span>
+                </div>
+                <div class="menu-item" data-page="products">
+                    <i class="fas fa-box"></i>
+                    <span>Produits</span>
+                </div>
+                <div class="menu-item" data-page="stats">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Statistiques</span>
+                </div>
+                <div class="menu-item" data-page="security">
+                    <i class="fas fa-lock"></i>
+                    <span>Sécurité</span>
+                </div>
+                <div class="menu-item" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-title" id="page-title">Tableau de bord</div>
+                <div class="header-actions">
+                    <div class="notification-badge" id="notification-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notification-count">0</span>
+                    </div>
+                    <div class="user-profile">
+                        <div class="user-avatar">A</div>
+                        <div>Admin</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pages -->
+            <div id="dashboard-page" class="page active">
+                <div class="dashboard-cards">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Commandes aujourd'hui</div>
+                            <div class="card-icon" style="background: rgba(20, 40, 160, 0.1); color: var(--primary);">
+                                <i class="fas fa-shopping-cart"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="today-orders">0</div>
+                        <div class="card-footer">+0% depuis hier</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Revenu aujourd'hui</div>
+                            <div class="card-icon" style="background: rgba(40, 167, 69, 0.1); color: var(--success);">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="today-revenue">0 FCFA</div>
+                        <div class="card-footer">+0% depuis hier</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Commandes en attente</div>
+                            <div class="card-icon" style="background: rgba(255, 193, 7, 0.1); color: var(--warning);">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="pending-orders">0</div>
+                        <div class="card-footer">En attente de validation</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Produits en stock bas</div>
+                            <div class="card-icon" style="background: rgba(220, 53, 69, 0.1); color: var(--danger);">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                        <div class="card-value" id="low-stock">0</div>
+                        <div class="card-footer">Nécessitent réapprovisionnement</div>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Ventes des 7 derniers jours</h3>
+                            <select class="filter-select" id="sales-chart-filter">
+                                <option value="7">7 jours</option>
+                                <option value="30">30 jours</option>
+                                <option value="90">90 jours</option>
+                            </select>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="sales-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Catégories populaires</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="categories-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <h3 class="mb-20">Dernières commandes</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>N° Commande</th>
+                                <th>Client</th>
+                                <th>Date</th>
+                                <th>Montant</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-orders">
+                            <tr>
+                                <td colspan="6" class="text-center">Aucune commande récente</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="orders-page" class="page">
+                <div class="filter-bar">
+                    <select id="order-status-filter" class="filter-select">
+                        <option value="all">Toutes les commandes</option>
+                        <option value="pending">En attente</option>
+                        <option value="completed">Validées</option>
+                        <option value="rejected">Rejetées</option>
+                    </select>
+                    <input type="date" id="order-date-filter" class="filter-select">
+                    <div class="search-container" style="flex: 1;">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="order-search" class="search-input" placeholder="Rechercher une commande...">
+                    </div>
+                </div>
+
+                <div class="export-options">
+                    <button class="btn btn-primary" id="export-completed-btn">Exporter les commandes validées</button>
+                    <button class="btn btn-primary" id="export-rejected-btn">Exporter les commandes rejetées</button>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>N° Commande</th>
+                                <th>Client</th>
+                                <th>Téléphone</th>
+                                <th>Date</th>
+                                <th>Montant</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orders-table">
+                            <tr>
+                                <td colspan="7" class="text-center">Aucune commande</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="products-page" class="page">
+                <div class="filter-bar">
+                    <select id="product-category-filter" class="filter-select">
+                        <option value="all">Toutes les catégories</option>
+                        <option value="iphone">iPhone</option>
+                        <option value="samsung">Samsung</option>
+                        <option value="tecno">Tecno</option>
+                        <option value="ecouteur">Écouteur</option>
+                        <option value="airpods">AirPods</option>
+                        <option value="chargeur">Chargeur</option>
+                        <option value="powerbank">Power Bank</option>
+                        <option value="tablette">Tablette</option>
+                        <option value="ordinateur">Ordinateur</option>
+                        <option value="box">Box</option>
+                        <option value="smartwatch">Smart Watch</option>
+                    </select>
+                    <select id="product-stock-filter" class="filter-select">
+                        <option value="all">Tous les stocks</option>
+                        <option value="low">Stock bas</option>
+                        <option value="medium">Stock moyen</option>
+                        <option value="high">Stock élevé</option>
+                    </select>
+                    <div class="search-container" style="flex: 1;">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="product-search" class="search-input" placeholder="Rechercher un produit...">
+                    </div>
+                    <button class="btn btn-primary" id="add-product-btn">Ajouter un produit</button>
+                </div>
+
+                <div class="product-grid" id="products-grid">
+                    <div class="text-center">Chargement des produits...</div>
+                </div>
+            </div>
+
+            <div id="stats-page" class="page">
+                <div class="filter-bar">
+                    <select id="stats-period" class="filter-select">
+                        <option value="day">Aujourd'hui</option>
+                        <option value="week">Cette semaine</option>
+                        <option value="month">Ce mois</option>
+                        <option value="year">Cette année</option>
+                    </select>
+                    <input type="date" id="stats-start-date" class="filter-select">
+                    <input type="date" id="stats-end-date" class="filter-select">
+                    <button class="btn btn-primary" id="apply-stats-btn">Appliquer</button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Commandes</div>
+                        <div class="stat-value" id="stats-orders">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Revenu</div>
+                        <div class="stat-value" id="stats-revenue">0 FCFA</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Produits vendus</div>
+                        <div class="stat-value" id="stats-products-sold">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Panier moyen</div>
+                        <div class="stat-value" id="stats-avg-cart">0 FCFA</div>
+                        <div class="stat-label">Moyenne</div>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Évolution des ventes</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="stats-sales-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Top produits</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="stats-products-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>Détails des ventes</h3>
+                        <button class="btn btn-danger" id="delete-sales-btn">Supprimer tout</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Produit</th>
+                                <th>Quantité vendue</th>
+                                <th>Revenu</th>
+                                <th>Stock restant</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sales-details">
+                            <tr>
+                                <td colspan="4" class="text-center">Aucune donnée</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="security-page" class="page">
+                <div class="security-prompt" id="security-login-form">
+                    <h3>Accès sécurisé</h3>
+                    <div class="form-group">
+                        <label class="form-label">Mot de passe de sécurité</label>
+                        <input type="password" id="security-access-password" class="form-control" placeholder="Entrez le mot de passe de sécurité">
+                    </div>
+                    <button class="btn btn-primary" id="security-access-btn">Accéder</button>
+                    <p id="security-access-error" class="text-danger" style="margin-top: 15px; display: none;">Mot de passe incorrect</p>
+                </div>
+
+                <div id="security-content" class="hidden">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Paramètres de sécurité</h3>
+                        </div>
+                        <div class="card-body" style="padding: 20px;">
+                            <div class="form-group">
+                                <label class="form-label">Mot de passe administrateur</label>
+                                <input type="password" id="admin-password" class="form-control" value="0000">
+                                <small>Le mot de passe pour accéder à l'interface d'administration</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Code de suppression</label>
+                                <input type="password" id="delete-code" class="form-control" value="0000">
+                                <small>Le code requis pour supprimer des éléments</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Mot de passe de sécurité</label>
+                                <input type="password" id="security-password-setting" class="form-control" value="1111">
+                                <small>Le mot de passe pour accéder à cette page</small>
+                            </div>
+                            <button class="btn btn-primary" id="save-security">Enregistrer les paramètres</button>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px;">
+                        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3>Journal d'activité</h3>
+                            <button class="btn btn-danger btn-sm" id="clear-activity-log">Supprimer le journal</button>
+                        </div>
+                        <div class="card-body" style="padding: 20px;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Utilisateur</th>
+                                        <th>Action</th>
+                                        <th>Résultat</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activity-log">
+                                    <tr>
+                                        <td colspan="4" class="text-center">Aucune activité récente</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="notifications-page" class="page">
+                <div class="header">
+                    <div class="header-title">Notifications</div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="mark-all-read-btn">Tout marquer comme lu</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Message</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="notifications-table">
+                            <tr>
+                                <td colspan="4" class="text-center">Aucune notification</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="order-detail-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Détails de la commande</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="order-detail-content">
+                Chargement...
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" id="validate-order-btn">Valider</button>
+                <button class="btn btn-danger" id="reject-order-btn">Rejeter</button>
+                <button class="btn btn-primary" id="close-order-btn">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="product-modal">
+        <div class="modal" style="max-width: 800px;">
+            <div class="modal-header">
+                <div class="modal-title">Ajouter un produit</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Nom du produit</label>
+                    <input type="text" class="form-control" id="product-name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Marque</label>
+                    <input type="text" class="form-control" id="product-brand">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Catégorie</label>
+                    <select class="form-control" id="product-category">
+                        <option value="iphone">iPhone</option>
+                        <option value="samsung">Samsung</option>
+                        <option value="tecno">Tecno</option>
+                        <option value="ecouteur">Écouteur</option>
+                        <option value="airpods">AirPods</option>
+                        <option value="chargeur">Chargeur</option>
+                        <option value="powerbank">Power Bank</option>
+                        <option value="tablette">Tablette</option>
+                        <option value="ordinateur">Ordinateur</option>
+                        <option value="box">Box</option>
+                        <option value="smartwatch">Smart Watch</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Prix normal (FCFA)</label>
+                    <input type="number" class="form-control" id="product-normal-price">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Prix réduit (FCFA)</label>
+                    <input type="number" class="form-control" id="product-sale-price">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Pourcentage de réduction (%)</label>
+                    <input type="number" class="form-control" id="product-discount" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Stock initial</label>
+                    <input type="number" class="form-control" id="product-stock">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Livraison</label>
+                    <select class="form-control" id="product-delivery">
+                        <option value="free">Gratuite</option>
+                        <option value="paid">Payante</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Flash Sale</label>
+                    <div>
+                        <input type="checkbox" id="product-flash-sale"> Inclure dans les ventes flash
+                    </div>
+                </div>
+                
+                <h4>Caractéristiques</h4>
+                <div class="specs-grid">
+                    <div class="form-group">
+                        <label class="form-label">OS</label>
+                        <input type="text" class="form-control" id="spec-os">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Stockage</label>
+                        <input type="text" class="form-control" id="spec-storage">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">RAM</label>
+                        <input type="text" class="form-control" id="spec-ram">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Taille écran</label>
+                        <input type="text" class="form-control" id="spec-screen">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Modèle</label>
+                        <input type="text" class="form-control" id="spec-model">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Technologie</label>
+                        <input type="text" class="form-control" id="spec-technology">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Couleurs</label>
+                        <input type="text" class="form-control" id="spec-colors">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Batterie</label>
+                        <input type="text" class="form-control" id="spec-battery">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Caméra</label>
+                        <input type="text" class="form-control" id="spec-camera">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description du produit</label>
+                    <textarea class="form-control" id="product-description" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Image principale (URL)</label>
+                    <input type="url" class="form-control" id="product-main-image" placeholder="https://...">
+                    <div class="image-preview" id="main-image-preview"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Images supplémentaires (URLs)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="url" class="form-control" id="product-additional-image" placeholder="https://...">
+                        <button class="btn btn-primary" id="add-image-btn">+ Ajouter</button>
+                    </div>
+                    <div class="image-preview" id="additional-images-preview"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="save-product-btn">Ajouter le produit</button>
+                <button class="btn btn-secondary" id="cancel-product-btn">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="edit-product-modal">
+        <div class="modal" style="max-width: 800px;">
+            <div class="modal-header">
+                <div class="modal-title">Modifier le produit</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="edit-product-content">
+                Chargement...
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="update-product-btn">Enregistrer</button>
+                <button class="btn btn-secondary" id="cancel-edit-btn">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="delete-confirm-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Confirmation de suppression</div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer cet élément ?</p>
+                <div class="form-group">
+                    <label class="form-label">Code de suppression</label>
+                    <input type="password" class="form-control" id="delete-confirm-code">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" id="confirm-delete-btn">Supprimer</button>
+                <button class="btn btn-secondary" id="cancel-delete-btn">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDfJwZNAtT5u9sKdw7R2J7QOcohf2_03Vk",
+            authDomain: "souhaibou-4883d.firebaseapp.com",
+            projectId: "souhaibou-4883d",
+            storageBucket: "souhaibou-4883d.firebasestorage.app",
+            messagingSenderId: "703566382245",
+            appId: "1:703566382245:web:82e265798635786bb8794c",
+            measurementId: "G-SW6XGD9YHY"
+        };
+
+        // Initialisation Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Variables globales
+        let adminPassword = "0000";
+        let deleteCode = "0000";
+        let securityPassword = "1111";
+        let currentUser = null;
+        let orders = [];
+        let products = [];
+        let notifications = [];
+        let activityLog = [];
+        let currentProductId = null;
+        let additionalImages = [];
+
+        // Éléments DOM
+        const elements = {
+            loginPage: document.getElementById('login-page'),
+            appContainer: document.getElementById('app-container'),
+            loginPassword: document.getElementById('login-password'),
+            loginBtn: document.getElementById('login-btn'),
+            loginError: document.getElementById('login-error'),
+            pageTitle: document.getElementById('page-title'),
+            pages: document.querySelectorAll('.page'),
+            menuItems: document.querySelectorAll('.menu-item'),
+            notificationBtn: document.getElementById('notification-btn'),
+            notificationCount: document.getElementById('notification-count'),
+            todayOrders: document.getElementById('today-orders'),
+            todayRevenue: document.getElementById('today-revenue'),
+            pendingOrders: document.getElementById('pending-orders'),
+            lowStock: document.getElementById('low-stock'),
+            recentOrders: document.getElementById('recent-orders'),
+            ordersTable: document.getElementById('orders-table'),
+            productsGrid: document.getElementById('products-grid'),
+            salesChart: document.getElementById('sales-chart'),
+            categoriesChart: document.getElementById('categories-chart'),
+            statsOrders: document.getElementById('stats-orders'),
+            statsRevenue: document.getElementById('stats-revenue'),
+            statsProductsSold: document.getElementById('stats-products-sold'),
+            statsAvgCart: document.getElementById('stats-avg-cart'),
+            salesDetails: document.getElementById('sales-details'),
+            adminPasswordInput: document.getElementById('admin-password'),
+            deleteCodeInput: document.getElementById('delete-code'),
+            securityPasswordSetting: document.getElementById('security-password-setting'),
+            saveSecurityBtn: document.getElementById('save-security'),
+            activityLog: document.getElementById('activity-log'),
+            orderDetailModal: document.getElementById('order-detail-modal'),
+            orderDetailContent: document.getElementById('order-detail-content'),
+            productModal: document.getElementById('product-modal'),
+            editProductModal: document.getElementById('edit-product-modal'),
+            editProductContent: document.getElementById('edit-product-content'),
+            deleteConfirmModal: document.getElementById('delete-confirm-modal'),
+            securityPromptModal: document.getElementById('security-prompt-modal'),
+            securityAccessPassword: document.getElementById('security-access-password'),
+            securityAccessBtn: document.getElementById('security-access-btn'),
+            securityAccessError: document.getElementById('security-access-error'),
+            securityContent: document.getElementById('security-content'),
+            securityLoginForm: document.getElementById('security-login-form'),
+            notificationsTable: document.getElementById('notifications-table')
+        };
+
+        // Initialisation de l'application
+        function initApp() {
+            setupEventListeners();
+            checkAuthState();
+            setupRealTimeListeners();
+        }
+
+        // Configuration des écouteurs d'événements en temps réel
+        function setupRealTimeListeners() {
+            // Écouter les nouvelles commandes
+            db.collection('orders')
+                .where('status', '==', 'pending')
+                .onSnapshot(snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            const order = {
+                                id: change.doc.id,
+                                ...change.doc.data()
+                            };
+                            
+                            // Vérifier si la commande n'existe pas déjà
+                            if (!orders.some(o => o.id === order.id)) {
+                                orders.push(order);
+                                
+                                // Créer une notification
+                                createNotification(
+                                    'Nouvelle commande',
+                                    `Nouvelle commande #${order.id.substring(0, 8)} de ${order.customerName}`,
+                                    'order',
+                                    order.id
+                                );
+                                
+                                // Mettre à jour les notifications
+                                loadNotifications();
+                                
+                                // Mettre à jour l'interface si nécessaire
+                                if (document.getElementById('dashboard-page').classList.contains('active')) {
+                                    loadDashboard();
+                                }
+                                
+                                if (document.getElementById('orders-page').classList.contains('active')) {
+                                    loadOrders();
+                                }
+                            }
+                        }
+                    });
+                });
+                
+            // Écouter les changements de statut des commandes
+            db.collection('orders').onSnapshot(snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'modified') {
+                        const updatedOrder = {
+                            id: change.doc.id,
+                            ...change.doc.data()
+                        };
+                        
+                        const index = orders.findIndex(o => o.id === updatedOrder.id);
+                        if (index !== -1) {
+                            orders[index] = updatedOrder;
+                            
+                            // Mettre à jour l'interface si nécessaire
+                            if (document.getElementById('dashboard-page').classList.contains('active')) {
+                                loadDashboard();
+                            }
+                            
+                            if (document.getElementById('orders-page').classList.contains('active')) {
+                                loadOrders();
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Vérification de l'état d'authentification
+        function checkAuthState() {
+            const savedAuth = localStorage.getItem('adminAuth');
+            if (savedAuth) {
+                const auth = JSON.parse(savedAuth);
+                // Vérifier si la session est toujours valide (3 heures)
+                if (auth.loggedIn && auth.timestamp > Date.now() - 3 * 60 * 60 * 1000) {
+                    showApp();
+                    loadData();
+                } else {
+                    showLogin();
+                }
+            } else {
+                showLogin();
+            }
+        }
+
+        // Configuration des écouteurs d'événements
+        function setupEventListeners() {
+            // Login
+            elements.loginBtn.addEventListener('click', handleLogin);
+            elements.loginPassword.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleLogin();
+            });
+
+            // Navigation
+            elements.menuItems.forEach(item => {
+                if (item.id !== 'logout-btn') {
+                    item.addEventListener('click', (e) => {
+                        const pageId = item.getAttribute('data-page');
+                        navigateTo(pageId);
+                    });
+                }
+            });
+
+            // Déconnexion
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
+            // Notifications
+            elements.notificationBtn.addEventListener('click', () => {
+                navigateTo('notifications');
+            });
+
+            // Sécurité
+            elements.securityAccessBtn.addEventListener('click', handleSecurityAccess);
+            elements.saveSecurityBtn.addEventListener('click', saveSecuritySettings);
+            document.getElementById('clear-activity-log').addEventListener('click', clearActivityLog);
+
+            // Modales
+            document.querySelectorAll('.modal-close').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.modal-overlay').forEach(modal => {
+                        modal.style.display = 'none';
+                    });
+                });
+            });
+
+            document.querySelectorAll('.modal-overlay').forEach(overlay => {
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        overlay.style.display = 'none';
+                    }
+                });
+            });
+
+            // Commandes
+            document.getElementById('order-status-filter').addEventListener('change', filterOrders);
+            document.getElementById('order-search').addEventListener('input', filterOrders);
+            document.getElementById('export-completed-btn').addEventListener('click', () => exportOrders('completed'));
+            document.getElementById('export-rejected-btn').addEventListener('click', () => exportOrders('rejected'));
+
+            // Produits
+            document.getElementById('add-product-btn').addEventListener('click', showAddProductModal);
+            document.getElementById('save-product-btn').addEventListener('click', saveProduct);
+            document.getElementById('cancel-product-btn').addEventListener('click', () => {
+                elements.productModal.style.display = 'none';
+            });
+
+            document.getElementById('product-category-filter').addEventListener('change', filterProducts);
+            document.getElementById('product-stock-filter').addEventListener('change', filterProducts);
+            document.getElementById('product-search').addEventListener('input', filterProducts);
+
+            // Gestion des images produits
+            document.getElementById('product-main-image').addEventListener('change', function() {
+                const preview = document.getElementById('main-image-preview');
+                preview.innerHTML = '';
+                if (this.value) {
+                    const img = document.createElement('img');
+                    img.src = this.value;
+                    img.className = 'preview-image';
+                    preview.appendChild(img);
+                }
+            });
+
+            document.getElementById('add-image-btn').addEventListener('click', function() {
+                const urlInput = document.getElementById('product-additional-image');
+                const url = urlInput.value.trim();
+                if (url) {
+                    additionalImages.push(url);
+                    updateAdditionalImagesPreview();
+                    urlInput.value = '';
+                }
+            });
+
+            // Calcul du pourcentage de réduction
+            document.getElementById('product-normal-price').addEventListener('change', calculateDiscount);
+            document.getElementById('product-sale-price').addEventListener('change', calculateDiscount);
+
+            // Statistiques
+            document.getElementById('apply-stats-btn').addEventListener('click', loadStats);
+            document.getElementById('delete-sales-btn').addEventListener('click', confirmDeleteSales);
+
+            // Notifications
+            document.getElementById('mark-all-read-btn').addEventListener('click', markAllNotificationsAsRead);
+        }
+
+        // Gestion de la connexion
+        function handleLogin() {
+            const password = elements.loginPassword.value;
+            
+            if (password === adminPassword) {
+                // Enregistrer l'authentification
+                localStorage.setItem('adminAuth', JSON.stringify({
+                    loggedIn: true,
+                    timestamp: Date.now()
+                }));
+                
+                // Enregistrer l'activité
+                logActivity('Connexion', 'Administrateur', 'Connexion réussie');
+                
+                showApp();
+                loadData();
+                elements.loginError.style.display = 'none';
+            } else {
+                elements.loginError.style.display = 'block';
+                // Enregistrer l'activité
+                logActivity('Connexion', 'Administrateur', 'Tentative de connexion échouée');
+            }
+        }
+
+        // Gestion de l'accès à la sécurité
+        function handleSecurityAccess() {
+            const password = elements.securityAccessPassword.value;
+            
+            if (password === securityPassword) {
+                elements.securityLoginForm.classList.add('hidden');
+                elements.securityContent.classList.remove('hidden');
+                elements.securityAccessError.style.display = 'none';
+                
+                // Enregistrer l'activité
+                logActivity('Sécurité', 'Administrateur', 'Accès à la page sécurité');
+            } else {
+                elements.securityAccessError.style.display = 'block';
+                // Enregistrer l'activité
+                logActivity('Sécurité', 'Administrateur', 'Tentative d\'accès à la page sécurité échouée');
+            }
+        }
+
+        // Gestion de la déconnexion
+        function handleLogout() {
+            // Enregistrer l'activité
+            logActivity('Déconnexion', 'Administrateur', 'Déconnexion de l\'application');
+            
+            localStorage.removeItem('adminAuth');
+            showLogin();
+        }
+
+        // Afficher l'application
+        function showApp() {
+            elements.loginPage.style.display = 'none';
+            elements.appContainer.classList.remove('hidden');
+        }
+
+        // Afficher l'écran de connexion
+        function showLogin() {
+            elements.loginPage.style.display = 'flex';
+            elements.appContainer.classList.add('hidden');
+            elements.loginPassword.value = '';
+        }
+
+        // Navigation entre les pages
+        function navigateTo(pageId) {
+            // Mettre à jour le titre de la page
+            elements.pageTitle.textContent = getPageTitle(pageId);
+            
+            // Masquer toutes les pages
+            elements.pages.forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Afficher la page demandée
+            document.getElementById(`${pageId}-page`).classList.add('active');
+            
+            // Mettre à jour la navigation
+            elements.menuItems.forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-page') === pageId) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // Charger les données spécifiques à la page
+            if (pageId === 'dashboard') {
+                loadDashboard();
+            } else if (pageId === 'orders') {
+                loadOrders();
+            } else if (pageId === 'products') {
+                loadProducts();
+            } else if (pageId === 'stats') {
+                loadStats();
+            } else if (pageId === 'security') {
+                loadSecurity();
+            } else if (pageId === 'notifications') {
+                loadNotificationsPage();
+            }
+        }
+
+        // Obtenir le titre de la page
+        function getPageTitle(pageId) {
+            const titles = {
+                'dashboard': 'Tableau de bord',
+                'orders': 'Gestion des commandes',
+                'products': 'Gestion des produits',
+                'stats': 'Statistiques de vente',
+                'security': 'Paramètres de sécurité',
+                'notifications': 'Notifications'
+            };
+            return titles[pageId] || 'Tableau de bord';
+        }
+
+        // Chargement des données
+        async function loadData() {
+            try {
+                // Charger les paramètres de sécurité
+                const securityDoc = await db.collection('admin').doc('security').get();
+                if (securityDoc.exists) {
+                    const securityData = securityDoc.data();
+                    adminPassword = securityData.password || '0000';
+                    deleteCode = securityData.deleteCode || '0000';
+                    securityPassword = securityData.securityPassword || '1111';
+                } else {
+                    // Créer les paramètres par défaut
+                    await db.collection('admin').doc('security').set({
+                        password: '0000',
+                        deleteCode: '0000',
+                        securityPassword: '1111'
+                    });
+                }
+                
+                // Charger les commandes
+                const ordersSnapshot = await db.collection('orders').orderBy('date', 'desc').get();
+                orders = ordersSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Charger les produits
+                const productsSnapshot = await db.collection('products').get();
+                products = productsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Charger les notifications
+                await loadNotifications();
+                
+                // Charger le journal d'activité
+                await loadActivityLog();
+                
+                // Mettre à jour l'interface
+                updateNotifications();
+                loadDashboard();
+                
+            } catch (error) {
+                console.error('Erreur de chargement des données:', error);
+            }
+        }
+
+        // Charger les notifications
+        async function loadNotifications() {
+            const notificationsSnapshot = await db.collection('notifications')
+                .orderBy('date', 'desc')
+                .get();
+            
+            notifications = notificationsSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            updateNotifications();
+        }
+
+        // Mettre à jour les notifications
+        function updateNotifications() {
+            const unreadCount = notifications.filter(n => !n.read).length;
+            elements.notificationCount.textContent = unreadCount;
+            
+            // Mettre à jour le badge de notification dans le titre de la page
+            document.title = unreadCount > 0 ? 
+                `(${unreadCount}) SOUHAIBOU TÉLÉCOM - Admin` : 
+                'SOUHAIBOU TÉLÉCOM - Admin';
+        }
+
+        // Créer une notification
+        async function createNotification(title, message, type, referenceId) {
+            try {
+                await db.collection('notifications').add({
+                    title: title,
+                    message: message,
+                    type: type,
+                    referenceId: referenceId,
+                    date: new Date(),
+                    read: false
+                });
+                
+                // Recharger les notifications
+                await loadNotifications();
+                
+            } catch (error) {
+                console.error('Erreur lors de la création de la notification:', error);
+            }
+        }
+
+        // Marquer toutes les notifications comme lues
+        async function markAllNotificationsAsRead() {
+            try {
+                const batch = db.batch();
+                const notificationsSnapshot = await db.collection('notifications')
+                    .where('read', '==', false)
+                    .get();
+                
+                notificationsSnapshot.forEach(doc => {
+                    const ref = db.collection('notifications').doc(doc.id);
+                    batch.update(ref, { read: true });
+                });
+                
+                await batch.commit();
+                
+                // Recharger les notifications
+                await loadNotifications();
+                
+                // Mettre à jour la page des notifications
+                if (document.getElementById('notifications-page').classList.contains('active')) {
+                    loadNotificationsPage();
+                }
+                
+                showNotification('Toutes les notifications marquées comme lues', 'success');
+                
+            } catch (error) {
+                console.error('Erreur lors du marquage des notifications:', error);
+                showNotification('Erreur lors du marquage des notifications', 'error');
+            }
+        }
+
+        // Charger la page des notifications
+        function loadNotificationsPage() {
+            if (notifications.length === 0) {
+                elements.notificationsTable.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center">Aucune notification</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            elements.notificationsTable.innerHTML = '';
+            notifications.forEach(notification => {
+                const notificationDate = notification.date.toDate();
+                const formattedDate = notificationDate.toLocaleDateString('fr-FR');
+                const formattedTime = notificationDate.toLocaleTimeString('fr-FR');
+                
+                const tr = document.createElement('tr');
+                tr.className = notification.read ? '' : 'notification-item unread';
+                tr.innerHTML = `
+                    <td>${formattedDate} ${formattedTime}</td>
+                    <td>${notification.title}</td>
+                    <td>${notification.message}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary view-notification-btn" data-id="${notification.id}" data-type="${notification.type}" data-ref="${notification.referenceId}">Voir</button>
+                    </td>
+                `;
+                
+                elements.notificationsTable.appendChild(tr);
+            });
+            
+            // Ajouter les écouteurs d'événements pour les boutons "Voir"
+            document.querySelectorAll('.view-notification-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const notificationId = btn.getAttribute('data-id');
+                    const notificationType = btn.getAttribute('data-type');
+                    const referenceId = btn.getAttribute('data-ref');
+                    
+                    // Marquer la notification comme lue
+                    markNotificationAsRead(notificationId);
+                    
+                    // Agir selon le type de notification
+                    if (notificationType === 'order') {
+                        showOrderDetails(referenceId);
+                    }
+                });
+            });
+        }
+
+        // Marquer une notification comme lue
+        async function markNotificationAsRead(notificationId) {
+            try {
+                await db.collection('notifications').doc(notificationId).update({
+                    read: true
+                });
+                
+                // Mettre à jour localement
+                const index = notifications.findIndex(n => n.id === notificationId);
+                if (index !== -1) {
+                    notifications[index].read = true;
+                }
+                
+                // Mettre à jour les compteurs
+                updateNotifications();
+                
+            } catch (error) {
+                console.error('Erreur lors du marquage de la notification:', error);
+            }
+        }
+
+        // Chargement du tableau de bord
+        function loadDashboard() {
+            // Calculer les statistiques
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const todayOrdersCount = orders.filter(order => {
+                const orderDate = order.date.toDate();
+                return orderDate >= today && order.status === 'completed';
+            }).length;
+            
+            const todayRevenue = orders.filter(order => {
+                const orderDate = order.date.toDate();
+                return orderDate >= today && order.status === 'completed';
+            }).reduce((total, order) => total + order.total, 0);
+            
+            const pendingOrdersCount = orders.filter(order => order.status === 'pending').length;
+            
+            const lowStockCount = products.filter(product => product.stock < 5).length;
+            
+            // Mettre à jour les cartes
+            elements.todayOrders.textContent = todayOrdersCount;
+            elements.todayRevenue.textContent = `${todayRevenue.toLocaleString()} FCFA`;
+            elements.pendingOrders.textContent = pendingOrdersCount;
+            elements.lowStock.textContent = lowStockCount;
+            
+            // Mettre à jour les graphiques
+            updateCharts();
+            
+            // Mettre à jour les commandes récentes
+            updateRecentOrders();
+        }
+
+        // Mettre à jour les graphiques
+        function updateCharts() {
+            // Données factices pour la démonstration
+            const salesData = {
+                labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+                datasets: [{
+                    label: 'Ventes (FCFA)',
+                    data: [120000, 190000, 150000, 210000, 180000, 250000, 220000],
+                    backgroundColor: 'rgba(20, 40, 160, 0.2)',
+                    borderColor: 'rgba(20, 40, 160, 1)',
+                    borderWidth: 2,
+                    tension: 0.4
+                }]
+            };
+            
+            const categoriesData = {
+                labels: ['iPhone', 'Samsung', 'Tecno', 'Écouteurs', 'Chargeurs'],
+                datasets: [{
+                    data: [35, 25, 15, 12, 13],
+                    backgroundColor: [
+                        'rgba(20, 40, 160, 0.7)',
+                        'rgba(255, 107, 0, 0.7)',
+                        'rgba(0, 102, 255, 0.7)',
+                        'rgba(58, 58, 58, 0.7)',
+                        'rgba(255, 102, 0, 0.7)'
+                    ]
+                }]
+            };
+            
+            // Créer ou mettre à jour le graphique des ventes
+            if (window.salesChart) {
+                window.salesChart.destroy();
+            }
+            
+            const salesCtx = document.getElementById('sales-chart').getContext('2d');
+            window.salesChart = new Chart(salesCtx, {
+                type: 'line',
+                data: salesData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' FCFA';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Créer ou mettre à jour le graphique des catégories
+            if (window.categoriesChart) {
+                window.categoriesChart.destroy();
+            }
+            
+            const categoriesCtx = document.getElementById('categories-chart').getContext('2d');
+            window.categoriesChart = new Chart(categoriesCtx, {
+                type: 'doughnut',
+                data: categoriesData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        }
+                    }
+                }
+            });
+        }
+
+        // Mettre à jour les commandes récentes
+        function updateRecentOrders() {
+            const recentOrders = orders.slice(0, 5);
+            
+            if (recentOrders.length === 0) {
+                elements.recentOrders.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center">Aucune commande récente</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            elements.recentOrders.innerHTML = '';
+            recentOrders.forEach(order => {
+                const orderDate = order.date.toDate();
+                const formattedDate = orderDate.toLocaleDateString('fr-FR');
+                
+                let statusClass = '';
+                if (order.status === 'completed') statusClass = 'text-success';
+                else if (order.status === 'rejected') statusClass = 'text-danger';
+                else statusClass = 'text-warning';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${order.id.substring(0, 8)}</td>
+                    <td>${order.customerName}</td>
+                    <td>${formattedDate}</td>
+                    <td>${order.total.toLocaleString()} FCFA</td>
+                    <td class="${statusClass}">${getStatusText(order.status)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary view-order-btn" data-id="${order.id}">Voir</button>
+                    </td>
+                `;
+                
+                elements.recentOrders.appendChild(tr);
+            });
+            
+            // Ajouter les écouteurs d'événements pour les boutons "Voir"
+            document.querySelectorAll('.view-order-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const orderId = btn.getAttribute('data-id');
+                    showOrderDetails(orderId);
+                });
+            });
+        }
+
+        // Obtenir le texte du statut
+        function getStatusText(status) {
+            const statuses = {
+                'pending': 'En attente',
+                'completed': 'Validée',
+                'rejected': 'Rejetée'
+            };
+            return statuses[status] || status;
+        }
+
+        // Afficher les détails d'une commande
+        function showOrderDetails(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+            
+            const orderDate = order.date.toDate();
+            const formattedDate = orderDate.toLocaleDateString('fr-FR');
+            
+            let itemsHtml = '';
+            order.items.forEach(item => {
+                itemsHtml += `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                        <div>
+                            <div style="font-weight: 500;">${item.product.name}</div>
+                            <div style="font-size: 0.9rem; color: #666;">${item.quantity} x ${item.product.salePrice || item.product.normalPrice} FCFA</div>
+                        </div>
+                        <div style="font-weight: 500;">${(item.quantity * (item.product.salePrice || item.product.normalPrice)).toLocaleString()} FCFA</div>
+                    </div>
+                `;
+            });
+            
+            elements.orderDetailContent.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                        <div>
+                            <div style="font-weight: 500;">N° de commande</div>
+                            <div>${order.id}</div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 500;">Date</div>
+                            <div>${formattedDate}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <div style="font-weight: 500;">Client</div>
+                        <div>${order.customerName}</div>
+                        <div>${order.customerPhone}</div>
+                        ${order.customerEmail ? `<div>${order.customerEmail}</div>` : ''}
+                        ${order.customerAddress ? `<div>${order.customerAddress}</div>` : ''}
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <div style="font-weight: 500;">Articles</div>
+                        ${itemsHtml}
+                    </div>
+                    
+                    <div style="border-top: 2px solid #eee; padding-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; font-weight: 500;">
+                            <div>Total</div>
+                            <div>${order.total.toLocaleString()} FCFA</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            elements.orderDetailModal.style.display = 'flex';
+            
+            // Configurer les boutons d'action
+            document.getElementById('validate-order-btn').onclick = () => updateOrderStatus(orderId, 'completed');
+            document.getElementById('reject-order-btn').onclick = () => updateOrderStatus(orderId, 'rejected');
+            document.getElementById('close-order-btn').onclick = () => {
+                elements.orderDetailModal.style.display = 'none';
+            };
+            
+            // Masquer les boutons si la commande n'est pas en attente
+            if (order.status !== 'pending') {
+                document.getElementById('validate-order-btn').style.display = 'none';
+                document.getElementById('reject-order-btn').style.display = 'none';
+            } else {
+                document.getElementById('validate-order-btn').style.display = 'inline-block';
+                document.getElementById('reject-order-btn').style.display = 'inline-block';
+            }
+        }
+
+        // Mettre à jour le statut d'une commande
+        async function updateOrderStatus(orderId, status) {
+            try {
+                await db.collection('orders').doc(orderId).update({
+                    status: status
+                });
+                
+                // Mettre à jour localement
+                const orderIndex = orders.findIndex(o => o.id === orderId);
+                if (orderIndex !== -1) {
+                    orders[orderIndex].status = status;
+                }
+                
+                // Créer une notification
+                const order = orders[orderIndex];
+                createNotification(
+                    `Commande ${status === 'completed' ? 'validée' : 'rejetée'}`,
+                    `Commande #${orderId.substring(0, 8)} ${status === 'completed' ? 'validée' : 'rejetée'}`,
+                    'order',
+                    orderId
+                );
+                
+                // Recharger les données
+                loadDashboard();
+                if (document.getElementById('orders-page').classList.contains('active')) {
+                    loadOrders();
+                }
+                
+                // Fermer la modal
+                elements.orderDetailModal.style.display = 'none';
+                
+                showNotification(`Commande ${status === 'completed' ? 'validée' : 'rejetée'} avec succès`, 'success');
+                
+                // Enregistrer l'activité
+                logActivity('Commande', 'Administrateur', `Commande ${orderId} ${status === 'completed' ? 'validée' : 'rejetée'}`);
+                
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour du statut:', error);
+                showNotification('Erreur lors de la mise à jour du statut', 'error');
+            }
+        }
+
+        // Chargement des commandes
+        function loadOrders() {
+            filterOrders();
+        }
+
+        // Filtrage des commandes
+        function filterOrders() {
+            const statusFilter = document.getElementById('order-status-filter').value;
+            const searchText = document.getElementById('order-search').value.toLowerCase();
+            
+            let filteredOrders = orders;
+            
+            // Filtrer par statut
+            if (statusFilter !== 'all') {
+                filteredOrders = filteredOrders.filter(order => order.status === statusFilter);
+            }
+            
+            // Filtrer par recherche
+            if (searchText) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.id.toLowerCase().includes(searchText) ||
+                    order.customerName.toLowerCase().includes(searchText) ||
+                    order.customerPhone.toLowerCase().includes(searchText)
+                );
+            }
+            
+            // Afficher les commandes filtrées
+            displayOrders(filteredOrders);
+        }
+
+        // Affichage des commandes
+        function displayOrders(ordersToDisplay) {
+            if (ordersToDisplay.length === 0) {
+                elements.ordersTable.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center">Aucune commande trouvée</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            elements.ordersTable.innerHTML = '';
+            ordersToDisplay.forEach(order => {
+                const orderDate = order.date.toDate();
+                const formattedDate = orderDate.toLocaleDateString('fr-FR');
+                
+                let statusClass = '';
+                if (order.status === 'completed') statusClass = 'text-success';
+                else if (order.status === 'rejected') statusClass = 'text-danger';
+                else statusClass = 'text-warning';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${order.id}</td>
+                    <td>${order.customerName}</td>
+                    <td>${order.customerPhone}</td>
+                    <td>${formattedDate}</td>
+                    <td>${order.total.toLocaleString()} FCFA</td>
+                    <td class="${statusClass}">${getStatusText(order.status)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary view-order-btn" data-id="${order.id}">Voir</button>
+                    </td>
+                `;
+                
+                elements.ordersTable.appendChild(tr);
+            });
+            
+            // Ajouter les écouteurs d'événements pour les boutons "Voir"
+            document.querySelectorAll('.view-order-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const orderId = btn.getAttribute('data-id');
+                    showOrderDetails(orderId);
+                });
+            });
+        }
+
+        // Exporter les commandes en PDF
+        function exportOrders(status) {
+            const filteredOrders = orders.filter(order => order.status === status);
+            
+            if (filteredOrders.length === 0) {
+                showNotification(`Aucune commande ${status === 'completed' ? 'validée' : 'rejetée'} à exporter`, 'info');
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Ajouter le logo et le titre
+            doc.setFontSize(20);
+            doc.setTextColor(20, 40, 160);
+            doc.text('SOUHAIBOU TÉLÉCOM', 105, 15, { align: 'center' });
+            doc.setFontSize(12);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Liste des commandes ${status === 'completed' ? 'validées' : 'rejetées'}`, 105, 22, { align: 'center' });
+            
+            // Ajouter la date
+            doc.setFontSize(10);
+            doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, 105, 30, { align: 'center' });
+            
+            // Préparer les données du tableau
+            const tableData = filteredOrders.map(order => {
+                const orderDate = order.date.toDate();
+                return [
+                    order.id.substring(0, 8),
+                    order.customerName,
+                    order.customerPhone,
+                    orderDate.toLocaleDateString('fr-FR'),
+                    `${order.total.toLocaleString()} FCFA`
+                ];
+            });
+            
+            // Ajouter le tableau
+            doc.autoTable({
+                head: [['N° Commande', 'Client', 'Téléphone', 'Date', 'Montant']],
+                body: tableData,
+                startY: 40,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [20, 40, 160],
+                    textColor: 255
+                }
+            });
+            
+            // Sauvegarder le PDF
+            doc.save(`commandes_${status}_${new Date().toISOString().split('T')[0]}.pdf`);
+            
+            showNotification(`Export des commandes ${status === 'completed' ? 'validées' : 'rejetées'} réussi`, 'success');
+            
+            // Enregistrer l'activité
+            logActivity('Export', 'Administrateur', `Export des commandes ${status === 'completed' ? 'validées' : 'rejetées'}`);
+        }
+
+        // Chargement des produits
+        function loadProducts() {
+            filterProducts();
+        }
+
+        // Filtrage des produits
+        function filterProducts() {
+            const categoryFilter = document.getElementById('product-category-filter').value;
+            const stockFilter = document.getElementById('product-stock-filter').value;
+            const searchText = document.getElementById('product-search').value.toLowerCase();
+            
+            let filteredProducts = products;
+            
+            // Filtrer par catégorie
+            if (categoryFilter !== 'all') {
+                filteredProducts = filteredProducts.filter(product => product.category === categoryFilter);
+            }
+            
+            // Filtrer par stock
+            if (stockFilter !== 'all') {
+                if (stockFilter === 'low') {
+                    filteredProducts = filteredProducts.filter(product => product.stock < 5);
+                } else if (stockFilter === 'medium') {
+                    filteredProducts = filteredProducts.filter(product => product.stock >= 5 && product.stock < 15);
+                } else if (stockFilter === 'high') {
+                    filteredProducts = filteredProducts.filter(product => product.stock >= 15);
+                }
+            }
+            
+            // Filtrer par recherche
+            if (searchText) {
+                filteredProducts = filteredProducts.filter(product => 
+                    product.name.toLowerCase().includes(searchText) ||
+                    (product.brand && product.brand.toLowerCase().includes(searchText)) ||
+                    product.category.toLowerCase().includes(searchText) ||
+                    (product.description && product.description.toLowerCase().includes(searchText))
+                );
+            }
+            
+            // Afficher les produits filtrées
+            displayProducts(filteredProducts);
+        }
+
+        // Affichage des produits
+        function displayProducts(productsToDisplay) {
+            if (productsToDisplay.length === 0) {
+                elements.productsGrid.innerHTML = `
+                    <div class="text-center">Aucun produit trouvé</div>
+                `;
+                return;
+            }
+            
+            elements.productsGrid.innerHTML = '';
+            productsToDisplay.forEach(product => {
+                let stockClass = 'stock-high';
+                let stockText = 'En stock';
+                
+                if (product.stock < 5) {
+                    stockClass = 'stock-low';
+                    stockText = 'Stock bas';
+                } else if (product.stock < 15) {
+                    stockClass = 'stock-medium';
+                    stockText = 'Stock moyen';
+                }
+                
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card';
+                productCard.innerHTML = `
+                    <div class="product-image">
+                        ${product.images && product.images.length > 0 ? 
+                            `<img src="${product.images[0]}" alt="${product.name}">` : 
+                            `<i class="fas fa-box-open" style="font-size: 3rem; color: #ccc;"></i>`
+                        }
+                        <div class="product-actions">
+                            <div class="product-action-btn" style="color: var(--primary);" data-id="${product.id}" data-action="edit">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                            <div class="product-action-btn" style="color: var(--danger);" data-id="${product.id}" data-action="delete">
+                                <i class="fas fa-trash"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-category" style="font-size: 0.8rem; color: var(--gray); margin-bottom: 5px;">${getCategoryName(product.category)}</div>
+                        <div class="product-price">${(product.salePrice || product.normalPrice).toLocaleString()} FCFA</div>
+                        <div class="product-stock">
+                            <span>Stock: ${product.stock}</span>
+                            <span class="stock-badge ${stockClass}">${stockText}</span>
+                        </div>
+                    </div>
+                `;
+                
+                elements.productsGrid.appendChild(productCard);
+            });
+            
+            // Ajouter les écouteurs d'événements pour les boutons d'action
+            document.querySelectorAll('.product-action-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const productId = btn.getAttribute('data-id');
+                    const action = btn.getAttribute('data-action');
+                    
+                    if (action === 'edit') {
+                        editProduct(productId);
+                    } else if (action === 'delete') {
+                        confirmDeleteProduct(productId);
+                    }
+                });
+            });
+        }
+
+        // Obtenir le nom de la catégorie
+        function getCategoryName(categoryId) {
+            const categories = {
+                'iphone': 'iPhone',
+                'samsung': 'Samsung',
+                'tecno': 'Tecno',
+                'ecouteur': 'Écouteur',
+                'airpods': 'AirPods',
+                'chargeur': 'Chargeur',
+                'powerbank': 'Power Bank',
+                'tablette': 'Tablette',
+                'ordinateur': 'Ordinateur',
+                'box': 'Box',
+                'smartwatch': 'Smart Watch'
+            };
+            
+            return categories[categoryId] || categoryId;
+        }
+
+        // Afficher la modal d'ajout de produit
+        function showAddProductModal() {
+            // Réinitialiser le formulaire
+            document.getElementById('product-name').value = '';
+            document.getElementById('product-brand').value = '';
+            document.getElementById('product-category').value = 'iphone';
+            document.getElementById('product-normal-price').value = '';
+            document.getElementById('product-sale-price').value = '';
+            document.getElementById('product-discount').value = '';
+            document.getElementById('product-stock').value = '';
+            document.getElementById('product-delivery').value = 'free';
+            document.getElementById('product-flash-sale').checked = false;
+            document.getElementById('spec-os').value = '';
+            document.getElementById('spec-storage').value = '';
+            document.getElementById('spec-ram').value = '';
+            document.getElementById('spec-screen').value = '';
+            document.getElementById('spec-model').value = '';
+            document.getElementById('spec-technology').value = '';
+            document.getElementById('spec-colors').value = '';
+            document.getElementById('spec-battery').value = '';
+            document.getElementById('spec-camera').value = '';
+            document.getElementById('product-description').value = '';
+            document.getElementById('product-main-image').value = '';
+            document.getElementById('main-image-preview').innerHTML = '';
+            document.getElementById('product-additional-image').value = '';
+            document.getElementById('additional-images-preview').innerHTML = '';
+            
+            additionalImages = [];
+            
+            elements.productModal.style.display = 'flex';
+        }
+
+        // Calculer le pourcentage de réduction
+        function calculateDiscount() {
+            const normalPrice = parseFloat(document.getElementById('product-normal-price').value) || 0;
+            const salePrice = parseFloat(document.getElementById('product-sale-price').value) || 0;
+            
+            if (normalPrice > 0 && salePrice > 0 && salePrice < normalPrice) {
+                const discount = Math.round(((normalPrice - salePrice) / normalPrice) * 100);
+                document.getElementById('product-discount').value = discount;
+            } else {
+                document.getElementById('product-discount').value = '';
+            }
+        }
+
+        // Mettre à jour l'aperçu des images supplémentaires
+        function updateAdditionalImagesPreview() {
+            const preview = document.getElementById('additional-images-preview');
+            preview.innerHTML = '';
+            
+            additionalImages.forEach(url => {
+                const img = document.createElement('img');
+                img.src = url;
+                img.className = 'preview-image';
+                preview.appendChild(img);
+            });
+        }
+
+        // Sauvegarder un produit
+        async function saveProduct() {
+            const name = document.getElementById('product-name').value;
+            const brand = document.getElementById('product-brand').value;
+            const category = document.getElementById('product-category').value;
+            const normalPrice = parseInt(document.getElementById('product-normal-price').value);
+            const salePrice = parseInt(document.getElementById('product-sale-price').value) || null;
+            const stock = parseInt(document.getElementById('product-stock').value);
+            const delivery = document.getElementById('product-delivery').value;
+            const flashSale = document.getElementById('product-flash-sale').checked;
+            const description = document.getElementById('product-description').value;
+            const mainImage = document.getElementById('product-main-image').value;
+            
+            // Récupérer les caractéristiques
+            const specs = {
+                os: document.getElementById('spec-os').value,
+                storage: document.getElementById('spec-storage').value,
+                ram: document.getElementById('spec-ram').value,
+                screen: document.getElementById('spec-screen').value,
+                model: document.getElementById('spec-model').value,
+                technology: document.getElementById('spec-technology').value,
+                colors: document.getElementById('spec-colors').value,
+                battery: document.getElementById('spec-battery').value,
+                camera: document.getElementById('spec-camera').value
+            };
+            
+            // Filtrer les caractéristiques vides
+            Object.keys(specs).forEach(key => {
+                if (!specs[key]) delete specs[key];
+            });
+            
+            if (!name || !normalPrice || !stock) {
+                showNotification('Veuillez remplir tous les champs obligatoires', 'error');
+                return;
+            }
+            
+            try {
+                const productData = {
+                    name,
+                    category,
+                    normalPrice,
+                    stock,
+                    delivery,
+                    flashSale,
+                    description,
+                    dateAdded: new Date()
+                };
+                
+                if (brand) productData.brand = brand;
+                if (salePrice) productData.salePrice = salePrice;
+                if (mainImage) productData.images = [mainImage, ...additionalImages];
+                if (Object.keys(specs).length > 0) productData.specs = specs;
+                
+                await db.collection('products').add(productData);
+                
+                // Recharger les produits
+                const productsSnapshot = await db.collection('products').get();
+                products = productsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                });
+                
+                // Mettre à jour l'affichage
+                filterProducts();
+                
+                // Fermer la modal
+                elements.productModal.style.display = 'none';
+                
+                showNotification('Produit ajouté avec succès', 'success');
+                
+                // Enregistrer l'activité
+                logActivity('Produit', 'Administrateur', `Ajout du produit ${name}`);
+                
+            } catch (error) {
+                console.error('Erreur lors de l\'ajout du produit:', error);
+                showNotification('Erreur lors de l\'ajout du produit', 'error');
+            }
+        }
+
+        // Modifier un produit
+        async function editProduct(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            currentProductId = productId;
+            
+            let formHtml = `
+                <div class="form-group">
+                    <label class="form-label">Nom du produit</label>
+                    <input type="text" class="form-control" id="edit-product-name" value="${product.name}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Marque</label>
+                    <input type="text" class="form-control" id="edit-product-brand" value="${product.brand || ''}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Catégorie</label>
+                    <select class="form-control" id="edit-product-category">
+                        <option value="iphone" ${product.category === 'iphone' ? 'selected' : ''}>iPhone</option>
+                        <option value="samsung" ${product.category === 'samsung' ? 'selected' : ''}>Samsung</option>
+                        <option value="tecno" ${product.category === 'tecno' ? 'selected' : ''}>Tecno</option>
+                        <option value="ecouteur" ${product.category === 'ecouteur' ? 'selected' : ''}>Écouteur</option>
+                        <option value="airpods" ${product.category === 'airpods' ? 'selected' : ''}>AirPods</option>
+                        <option value="chargeur" ${product.category === 'chargeur' ? 'selected' : ''}>Chargeur</option>
+                        <option value="powerbank" ${product.category === 'powerbank' ? 'selected' : ''}>Power Bank</option>
+                        <option value="tablette" ${product.category === 'tablette' ? 'selected' : ''}>Tablette</option>
+                        <option value="ordinateur" ${product.category === 'ordinateur' ? 'selected' : ''}>Ordinateur</option>
+                        <option value="box" ${product.category === 'box' ? 'selected' : ''}>Box</option>
+                        <option value="smartwatch" ${product.category === 'smartwatch' ? 'selected' : ''}>Smart Watch</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Prix normal (FCFA)</label>
+                    <input type="number" class="form-control" id="edit-product-normal-price" value="${product.normalPrice}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Prix réduit (FCFA)</label>
+                    <input type="number" class="form-control" id="edit-product-sale-price" value="${product.salePrice || ''}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Stock</label>
+                    <input type="number" class="form-control" id="edit-product-stock" value="${product.stock}">
+                </div>
+            `;
+            
+            elements.editProductContent.innerHTML = formHtml;
+            elements.editProductModal.style.display = 'flex';
+            
+            // Ajouter l'écouteur pour le bouton de mise à jour
+            document.getElementById('update-product-btn').onclick = updateProduct;
+        }
+
+        // Mettre à jour un produit
+        async function updateProduct() {
+            const name = document.getElementById('edit-product-name').value;
+            const brand = document.getElementById('edit-product-brand').value;
+            const category = document.getElementById('edit-product-category').value;
+            const normalPrice = parseInt(document.getElementById('edit-product-normal-price').value);
+            const salePrice = parseInt(document.getElementById('edit-product-sale-price').value) || null;
+            const stock = parseInt(document.getElementById('edit-product-stock').value);
+            
+            if (!name || !normalPrice || !stock) {
+                showNotification('Veuillez remplir tous les champs obligatoires', 'error');
+                return;
+            }
+            
+            try {
+                const productData = {
+                    name,
+                    category,
+                    normalPrice,
+                    stock
+                };
+                
+                if (brand) productData.brand = brand;
+                if (salePrice) productData.salePrice = salePrice;
+                
+                await db.collection('products').doc(currentProductId).update(productData);
+                
+                // Recharger les produits
+                const productsSnapshot = await db.collection('products').get();
+                products = productsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                });
+                
+                // Mettre à jour l'affichage
+                filterProducts();
+                
+                // Fermer la modal
+                elements.editProductModal.style.display = 'none';
+                
+                showNotification('Produit mis à jour avec succès', 'success');
+                
+                // Enregistrer l'activité
+                logActivity('Produit', 'Administrateur', `Modification du produit ${name}`);
+                
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour du produit:', error);
+                showNotification('Erreur lors de la mise à jour du produit', 'error');
+            }
+        }
+
+        // Confirmer la suppression d'un produit
+        function confirmDeleteProduct(productId) {
+            currentProductId = productId;
+            elements.deleteConfirmModal.style.display = 'flex';
+        }
+
+        // Supprimer un produit
+        async function deleteProduct() {
+            const code = document.getElementById('delete-confirm-code').value;
+            
+            if (code !== deleteCode) {
+                showNotification('Code de suppression incorrect', 'error');
+                return;
+            }
+            
+            try {
+                await db.collection('products').doc(currentProductId).delete();
+                
+                // Recharger les produits
+                const productsSnapshot = await db.collection('products').get();
+                products = productsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                });
+                
+                // Mettre à jour l'affichage
+                filterProducts();
+                
+                // Fermer la modal
+                elements.deleteConfirmModal.style.display = 'none';
+                
+                showNotification('Produit supprimé avec succès', 'success');
+                
+                // Enregistrer l'activité
+                logActivity('Produit', 'Administrateur', `Suppression du produit ${currentProductId}`);
+                
+            } catch (error) {
+                console.error('Erreur lors de la suppression du produit:', error);
+                showNotification('Erreur lors de la suppression du produit', 'error');
+            }
+        }
+
+        // Chargement des statistiques
+        function loadStats() {
+            // Données factices pour la démonstration
+            elements.statsOrders.textContent = '42';
+            elements.statsRevenue.textContent = '1 250 000 FCFA';
+            elements.statsProductsSold.textContent = '78';
+            elements.statsAvgCart.textContent = '29 762 FCFA';
+            
+            // Mettre à jour les graphiques des statistiques
+            updateStatsCharts();
+            
+            // Mettre à jour les détails des ventes
+            updateSalesDetails();
+        }
+
+        // Mettre à jour les graphiques des statistiques
+        function updateStatsCharts() {
+            // Données factices pour la démonstration
+            const statsSalesData = {
+                labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'],
+                datasets: [{
+                    label: 'Ventes (FCFA)',
+                    data: [1200000, 1900000, 1500000, 2100000, 1800000, 2500000, 2200000, 2400000, 2300000, 2600000, 2800000, 3000000],
+                    backgroundColor: 'rgba(20, 40, 160, 0.2)',
+                    borderColor: 'rgba(20, 40, 160, 1)',
+                    borderWidth: 2,
+                    tension: 0.4
+                }]
+            };
+            
+            const statsProductsData = {
+                labels: ['iPhone 13', 'Samsung S22', 'AirPods Pro', 'Chargeur USB-C', 'PowerBank'],
+                datasets: [{
+                    label: 'Quantité vendue',
+                    data: [25, 18, 15, 12, 8],
+                    backgroundColor: 'rgba(255, 107, 0, 0.7)',
+                    borderColor: 'rgba(255, 107, 0, 1)',
+                    borderWidth: 1
+                }]
+            };
+            
+            // Créer ou mettre à jour le graphique des ventes
+            if (window.statsSalesChart) {
+                window.statsSalesChart.destroy();
+            }
+            
+            const statsSalesCtx = document.getElementById('stats-sales-chart').getContext('2d');
+            window.statsSalesChart = new Chart(statsSalesCtx, {
+                type: 'bar',
+                data: statsSalesData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return (value / 1000000).toFixed(1) + ' M';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Créer ou mettre à jour le graphique des produits
+            if (window.statsProductsChart) {
+                window.statsProductsChart.destroy();
+            }
+            
+            const statsProductsCtx = document.getElementById('stats-products-chart').getContext('2d');
+            window.statsProductsChart = new Chart(statsProductsCtx, {
+                type: 'bar',
+                data: statsProductsData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
+
+        // Mettre à jour les détails des ventes
+        function updateSalesDetails() {
+            // Données factices pour la démonstration
+            const salesDetailsData = [
+                { product: 'iPhone 13', quantity: 25, revenue: 1250000, stock: 12 },
+                { product: 'Samsung S22', quantity: 18, revenue: 900000, stock: 8 },
+                { product: 'AirPods Pro', quantity: 15, revenue: 450000, stock: 5 },
+                { product: 'Chargeur USB-C', quantity: 12, revenue: 60000, stock: 20 },
+                { product: 'PowerBank', quantity: 8, revenue: 160000, stock: 15 }
+            ];
+            
+            elements.salesDetails.innerHTML = '';
+            salesDetailsData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.product}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.revenue.toLocaleString()} FCFA</td>
+                    <td>${item.stock}</td>
+                `;
+                elements.salesDetails.appendChild(tr);
+            });
+        }
+
+        // Confirmer la suppression des données de vente
+        function confirmDeleteSales() {
+            elements.securityPromptModal.style.display = 'flex';
+            
+            // Configurer le bouton de confirmation
+            document.getElementById('confirm-security-btn').onclick = async () => {
+                const password = document.getElementById('security-password').value;
+                
+                if (password !== securityPassword) {
+                    showNotification('Mot de passe de sécurité incorrect', 'error');
+                    return;
+                }
+                
+                // Ici, vous implémenteriez la suppression des données de vente
+                showNotification('Données de vente supprimées avec succès', 'success');
+                elements.securityPromptModal.style.display = 'none';
+                
+                // Enregistrer l'activité
+                logActivity('Statistiques', 'Administrateur', 'Suppression des données de vente');
+            };
+        }
+
+        // Chargement des paramètres de sécurité
+        function loadSecurity() {
+            // Réinitialiser le formulaire de sécurité
+            elements.securityLoginForm.classList.remove('hidden');
+            elements.securityContent.classList.add('hidden');
+            elements.securityAccessPassword.value = '';
+            
+            // Charger les paramètres
+            elements.adminPasswordInput.value = adminPassword;
+            elements.deleteCodeInput.value = deleteCode;
+            elements.securityPasswordSetting.value = securityPassword;
+            
+            // Charger le journal d'activité
+            loadActivityLog();
+        }
+
+        // Charger le journal d'activité
+        async function loadActivityLog() {
+            const activitySnapshot = await db.collection('activityLog')
+                .orderBy('timestamp', 'desc')
+                .get();
+            
+            activityLog = activitySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            updateActivityLog();
+        }
+
+        // Mettre à jour le journal d'activité
+        function updateActivityLog() {
+            if (activityLog.length === 0) {
+                elements.activityLog.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center">Aucune activité récente</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            elements.activityLog.innerHTML = '';
+            activityLog.forEach(activity => {
+                const activityDate = activity.timestamp.toDate();
+                const formattedDate = activityDate.toLocaleDateString('fr-FR');
+                const formattedTime = activityDate.toLocaleTimeString('fr-FR');
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${formattedDate} ${formattedTime}</td>
+                    <td>${activity.user}</td>
+                    <td>${activity.action}</td>
+                    <td>${activity.result}</td>
+                `;
+                
+                elements.activityLog.appendChild(tr);
+            });
+        }
+
+        // Sauvegarder les paramètres de sécurité
+        async function saveSecuritySettings() {
+            const newPassword = elements.adminPasswordInput.value;
+            const newDeleteCode = elements.deleteCodeInput.value;
+            const newSecurityPassword = elements.securityPasswordSetting.value;
+            
+            if (!newPassword || !newDeleteCode || !newSecurityPassword) {
+                showNotification('Veuillez remplir tous les champs', 'error');
+                return;
+            }
+            
+            try {
+                await db.collection('admin').doc('security').set({
+                    password: newPassword,
+                    deleteCode: newDeleteCode,
+                    securityPassword: newSecurityPassword
+                });
+                
+                adminPassword = newPassword;
+                deleteCode = newDeleteCode;
+                securityPassword = newSecurityPassword;
+                
+                showNotification('Paramètres de sécurité enregistrés', 'success');
+                
+                // Enregistrer l'activité
+                logActivity('Sécurité', 'Administrateur', 'Modification des paramètres de sécurité');
+                
+            } catch (error) {
+                console.error('Erreur lors de la sauvegarde des paramètres:', error);
+                showNotification('Erreur lors de la sauvegarde des paramètres', 'error');
+            }
+        }
+
+        // Effacer le journal d'activité
+        async function clearActivityLog() {
+            try {
+                const batch = db.batch();
+                const activitySnapshot = await db.collection('activityLog').get();
+                
+                activitySnapshot.forEach(doc => {
+                    const ref = db.collection('activityLog').doc(doc.id);
+                    batch.delete(ref);
+                });
+                
+                await batch.commit();
+                
+                // Vider localement
+                activityLog = [];
+                updateActivityLog();
+                
+                showNotification('Journal d\'activité effacé', 'success');
+                
+                // Enregistrer l'activité
+                logActivity('Sécurité', 'Administrateur', 'Suppression du journal d\'activité');
+                
+            } catch (error) {
+                console.error('Erreur lors de la suppression du journal:', error);
+                showNotification('Erreur lors de la suppression du journal', 'error');
+            }
+        }
+
+        // Enregistrer une activité dans le journal
+        async function logActivity(action, user, result) {
+            try {
+                await db.collection('activityLog').add({
+                    action: action,
+                    user: user,
+                    result: result,
+                    timestamp: new Date()
+                });
+                
+                // Recharger le journal
+                await loadActivityLog();
+                
+            } catch (error) {
+                console.error('Erreur lors de l\'enregistrement de l\'activité:', error);
+            }
+        }
+
+        // Afficher une notification
+        function showNotification(message, type = 'info') {
+            // Créer l'élément de notification
+            const notification = document.createElement('div');
+            notification.style.position = 'fixed';
+            notification.style.bottom = '20px';
+            notification.style.right = '20px';
+            notification.style.padding = '10px 20px';
+            notification.style.borderRadius = '5px';
+            notification.style.color = 'white';
+            notification.style.zIndex = '3000';
+            notification.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.2)';
+            
+            if (type === 'success') {
+                notification.style.background = 'var(--success)';
+            } else if (type === 'error') {
+                notification.style.background = 'var(--danger)';
+            } else if (type === 'warning') {
+                notification.style.background = 'var(--warning)';
+            } else {
+                notification.style.background = 'var(--info)';
+            }
+            
+            notification.textContent = message;
+            
+            // Ajouter à la page
+            document.body.appendChild(notification);
+            
+            // Supprimer après 3 secondes
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 3000);
+        }
+
+        // Configurer les écouteurs pour les boutons de confirmation
+        document.getElementById('confirm-delete-btn').addEventListener('click', deleteProduct);
+        document.getElementById('cancel-delete-btn').addEventListener('click', () => {
+            elements.deleteConfirmModal.style.display = 'none';
+        });
+
+        document.getElementById('cancel-security-btn').addEventListener('click', () => {
+            elements.securityPromptModal.style.display = 'none';
+        });
+
+        document.getElementById('cancel-edit-btn').addEventListener('click', () => {
+            elements.editProductModal.style.display = 'none';
+        });
+
+        // Initialiser l'application
+        initApp();
+    </script>
+</body>
+</html>
