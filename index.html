@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -492,6 +493,14 @@
                 width: 100%;
                 justify-content: space-between;
             }
+
+            .charts-container {
+                grid-template-columns: 1fr !important;
+            }
+
+            canvas {
+                max-height: 250px !important;
+            }
         }
 
         /* Page specific styles */
@@ -559,6 +568,7 @@
             overflow: hidden;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             transition: transform 0.3s;
+            position: relative;
         }
 
         .product-card:hover {
@@ -650,6 +660,72 @@
             transform: translateY(-50%);
             color: var(--gray);
         }
+
+        .image-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .image-preview img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+
+        .product-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .product-actions button {
+            padding: 5px;
+            font-size: 0.8rem;
+        }
+
+        .notification-page {
+            padding: 20px;
+        }
+
+        .notification-item {
+            background: white;
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .characteristics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .download-btn {
+            margin-top: 10px;
+        }
+
+        .security-login {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr !important;
+            }
+            canvas {
+                height: 200px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -699,6 +775,10 @@
                     <i class="fas fa-lock"></i>
                     <span>Sécurité</span>
                 </div>
+                <div class="menu-item" id="notifications-menu">
+                    <i class="fas fa-bell"></i>
+                    <span>Notifications</span>
+                </div>
                 <div class="menu-item" id="logout-btn">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Déconnexion</span>
@@ -712,7 +792,7 @@
             <div class="header">
                 <div class="header-title" id="page-title">Tableau de bord</div>
                 <div class="header-actions">
-                    <div class="notification-badge">
+                    <div class="notification-badge" id="notification-bell">
                         <i class="fas fa-bell"></i>
                         <span class="badge" id="notification-count">0</span>
                     </div>
@@ -823,6 +903,8 @@
                         <i class="fas fa-search search-icon"></i>
                         <input type="text" id="order-search" class="search-input" placeholder="Rechercher une commande...">
                     </div>
+                    <button class="btn btn-primary download-btn" id="download-validated">Télécharger Validées (PDF)</button>
+                    <button class="btn btn-danger download-btn" id="download-rejected">Télécharger Rejetées (PDF)</button>
                 </div>
 
                 <div class="table-container">
@@ -856,6 +938,11 @@
                         <option value="tecno">Tecno</option>
                         <option value="ecouteur">Écouteur</option>
                         <option value="chargeur">Chargeur</option>
+                        <option value="powerbank">Power Bank</option>
+                        <option value="tablette">Tablette</option>
+                        <option value="ordinateur">Ordinateur</option>
+                        <option value="box">Box</option>
+                        <option value="smartwatch">Smart Watch</option>
                     </select>
                     <select id="product-stock-filter" class="filter-select">
                         <option value="all">Tous les stocks</option>
@@ -927,7 +1014,7 @@
                 </div>
 
                 <div class="table-container">
-                    <h3 class="mb-20">Détails des ventes</h3>
+                    <h3 class="mb-20">Détails des ventes <button class="btn btn-danger btn-sm" id="delete-all-sales">Supprimer tous</button></h3>
                     <table>
                         <thead>
                             <tr>
@@ -946,45 +1033,69 @@
                 </div>
             </div>
 
-            <div id="security-page" class="page">
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Paramètres de sécurité</h3>
-                    </div>
-                    <div class="card-body" style="padding: 20px;">
-                        <div class="form-group">
-                            <label class="form-label">Mot de passe administrateur</label>
-                            <input type="password" id="admin-password" class="form-control" value="0000">
-                            <small>Le mot de passe pour accéder à l'interface d'administration</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Code de suppression</label>
-                            <input type="password" id="delete-code" class="form-control" value="0000">
-                            <small>Le code requis pour supprimer des éléments</small>
-                        </div>
-                        <button class="btn btn-primary" id="save-security">Enregistrer les paramètres</button>
-                    </div>
+            <div id="notifications-page" class="page">
+                <div class="notification-page">
+                    <h3>Notifications (Commandes en attente)</h3>
+                    <div id="notifications-list"></div>
                 </div>
+            </div>
 
-                <div class="card" style="margin-top: 20px;">
-                    <div class="card-header">
-                        <h3>Journal d'activité</h3>
+            <div id="security-page" class="page">
+                <div class="security-login">
+                    <h3>Accès aux paramètres de sécurité</h3>
+                    <div class="form-group">
+                        <label class="form-label">Mot de passe sécurité (1111)</label>
+                        <input type="password" id="security-password" class="form-control" placeholder="Entrez le mot de passe">
                     </div>
-                    <div class="card-body" style="padding: 20px;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Utilisateur</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="activity-log">
-                                <tr>
-                                    <td colspan="3" class="text-center">Aucune activité récente</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <button id="security-login-btn" class="btn btn-primary" style="width: 100%;">Accéder</button>
+                    <p id="security-error" class="text-danger" style="margin-top: 15px; display: none;">Mot de passe incorrect</p>
+                </div>
+                <div id="security-content" class="hidden">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Paramètres de sécurité</h3>
+                        </div>
+                        <div class="card-body" style="padding: 20px;">
+                            <div class="form-group">
+                                <label class="form-label">Mot de passe administrateur</label>
+                                <input type="password" id="admin-password" class="form-control" value="0000">
+                                <small>Le mot de passe pour accéder à l'interface d'administration</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Code de suppression</label>
+                                <input type="password" id="delete-code" class="form-control" value="0000">
+                                <small>Le code requis pour supprimer des éléments</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Mot de passe sécurité</label>
+                                <input type="password" id="security-password-admin" class="form-control" value="1111">
+                                <small>Mot de passe pour accéder à la page sécurité</small>
+                            </div>
+                            <button class="btn btn-primary" id="save-security">Enregistrer les paramètres</button>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px;">
+                        <div class="card-header">
+                            <h3>Journal d'activité</h3>
+                        </div>
+                        <div class="card-body" style="padding: 20px;">
+                            <button class="btn btn-danger" id="delete-log">Supprimer le journal</button>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Utilisateur</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activity-log">
+                                    <tr>
+                                        <td colspan="3" class="text-center">Aucune activité récente</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1012,13 +1123,17 @@
     <div class="modal-overlay" id="product-modal">
         <div class="modal">
             <div class="modal-header">
-                <div class="modal-title">Ajouter un produit</div>
+                <div class="modal-title" id="product-modal-title">Ajouter un produit</div>
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Nom du produit</label>
                     <input type="text" class="form-control" id="product-name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Marque</label>
+                    <input type="text" class="form-control" id="product-brand">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Catégorie</label>
@@ -1040,20 +1155,84 @@
                     <input type="number" class="form-control" id="product-normal-price">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Prix promo (FCFA)</label>
+                    <label class="form-label">Prix réduit (FCFA)</label>
                     <input type="number" class="form-control" id="product-sale-price">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Pourcentage de réduction (%)</label>
+                    <input type="number" class="form-control" id="product-discount" min="0" max="100">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Stock initial</label>
                     <input type="number" class="form-control" id="product-stock">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Images (URLs séparées par des virgules)</label>
-                    <textarea class="form-control" id="product-images" rows="3"></textarea>
+                    <label class="form-label">Livraison</label>
+                    <select class="form-control" id="product-delivery">
+                        <option value="free">Gratuite</option>
+                        <option value="paid">Payante</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Description</label>
+                    <label class="form-label">
+                        <input type="checkbox" id="product-flash-sale"> Inclure dans les ventes flash
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Caractéristiques</label>
+                    <div class="characteristics-grid">
+                        <div class="form-group">
+                            <label>OS</label>
+                            <input type="text" class="form-control" id="char-os">
+                        </div>
+                        <div class="form-group">
+                            <label>Stockage</label>
+                            <input type="text" class="form-control" id="char-storage">
+                        </div>
+                        <div class="form-group">
+                            <label>RAM</label>
+                            <input type="text" class="form-control" id="char-ram">
+                        </div>
+                        <div class="form-group">
+                            <label>Taille écran</label>
+                            <input type="text" class="form-control" id="char-screen">
+                        </div>
+                        <div class="form-group">
+                            <label>Modèle</label>
+                            <input type="text" class="form-control" id="char-model">
+                        </div>
+                        <div class="form-group">
+                            <label>Technologie</label>
+                            <input type="text" class="form-control" id="char-tech">
+                        </div>
+                        <div class="form-group">
+                            <label>Couleurs</label>
+                            <input type="text" class="form-control" id="char-colors">
+                        </div>
+                        <div class="form-group">
+                            <label>Batterie</label>
+                            <input type="text" class="form-control" id="char-battery">
+                        </div>
+                        <div class="form-group">
+                            <label>Caméra</label>
+                            <input type="text" class="form-control" id="char-camera">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description du produit</label>
                     <textarea class="form-control" id="product-description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Image principale (URL)</label>
+                    <input type="url" class="form-control" id="product-main-image" placeholder="https://...">
+                    <div class="image-preview" id="main-image-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Images supplémentaires (URLs séparées par des virgules)</label>
+                    <input type="text" class="form-control" id="product-additional-images" placeholder="https://..., https://...">
+                    <div class="image-preview" id="additional-images-preview"></div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="add-image-btn">+ Ajouter une image</button>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1102,10 +1281,13 @@
         // Variables globales
         let adminPassword = "0000";
         let deleteCode = "0000";
+        let securityPassword = "1111";
         let currentUser = null;
         let orders = [];
         let products = [];
         let notifications = [];
+        let authTimeout = 3 * 60 * 60 * 1000; // 3 hours
+        let editingProductId = null;
 
         // Éléments DOM
         const elements = {
@@ -1118,6 +1300,7 @@
             pages: document.querySelectorAll('.page'),
             menuItems: document.querySelectorAll('.menu-item'),
             notificationCount: document.getElementById('notification-count'),
+            notificationBell: document.getElementById('notification-bell'),
             todayOrders: document.getElementById('today-orders'),
             todayRevenue: document.getElementById('today-revenue'),
             pendingOrders: document.getElementById('pending-orders'),
@@ -1134,12 +1317,22 @@
             salesDetails: document.getElementById('sales-details'),
             adminPasswordInput: document.getElementById('admin-password'),
             deleteCodeInput: document.getElementById('delete-code'),
+            securityPasswordInput: document.getElementById('security-password-admin'),
             saveSecurityBtn: document.getElementById('save-security'),
             activityLog: document.getElementById('activity-log'),
             orderDetailModal: document.getElementById('order-detail-modal'),
             orderDetailContent: document.getElementById('order-detail-content'),
             productModal: document.getElementById('product-modal'),
-            deleteConfirmModal: document.getElementById('delete-confirm-modal')
+            deleteConfirmModal: document.getElementById('delete-confirm-modal'),
+            securityContent: document.getElementById('security-content'),
+            securityLoginBtn: document.getElementById('security-login-btn'),
+            securityError: document.getElementById('security-error'),
+            securityPassword: document.getElementById('security-password'),
+            notificationsList: document.getElementById('notifications-list'),
+            downloadValidated: document.getElementById('download-validated'),
+            downloadRejected: document.getElementById('download-rejected'),
+            deleteAllSales: document.getElementById('delete-all-sales'),
+            deleteLog: document.getElementById('delete-log')
         };
 
         // Initialisation de l'application
@@ -1153,10 +1346,11 @@
             const savedAuth = localStorage.getItem('adminAuth');
             if (savedAuth) {
                 const auth = JSON.parse(savedAuth);
-                if (auth.loggedIn && auth.timestamp > Date.now() - 24 * 60 * 60 * 1000) {
+                if (auth.loggedIn && (Date.now() - auth.timestamp) < authTimeout) {
                     showApp();
                     loadData();
                 } else {
+                    localStorage.removeItem('adminAuth');
                     showLogin();
                 }
             } else {
@@ -1174,7 +1368,7 @@
 
             // Navigation
             elements.menuItems.forEach(item => {
-                if (item.id !== 'logout-btn') {
+                if (item.id !== 'logout-btn' && item.id !== 'notifications-menu') {
                     item.addEventListener('click', (e) => {
                         const pageId = item.getAttribute('data-page');
                         navigateTo(pageId);
@@ -1182,56 +1376,72 @@
                 }
             });
 
+            // Notifications menu
+            document.getElementById('notifications-menu').addEventListener('click', () => navigateTo('notifications'));
+
+            // Notification bell
+            elements.notificationBell.addEventListener('click', () => navigateTo('notifications'));
+
             // Déconnexion
             document.getElementById('logout-btn').addEventListener('click', handleLogout);
 
             // Sécurité
+            elements.securityLoginBtn.addEventListener('click', handleSecurityLogin);
+            elements.securityPassword.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleSecurityLogin();
+            });
             elements.saveSecurityBtn.addEventListener('click', saveSecuritySettings);
 
             // Modales
             document.querySelectorAll('.modal-close').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.modal-overlay').forEach(modal => {
-                        modal.style.display = 'none';
-                    });
-                });
+                btn.addEventListener('click', closeModals);
             });
 
             document.querySelectorAll('.modal-overlay').forEach(overlay => {
                 overlay.addEventListener('click', (e) => {
-                    if (e.target === overlay) {
-                        overlay.style.display = 'none';
-                    }
+                    if (e.target === overlay) closeModals();
                 });
             });
 
             // Commandes
             document.getElementById('order-status-filter').addEventListener('change', filterOrders);
             document.getElementById('order-search').addEventListener('input', filterOrders);
+            elements.downloadValidated.addEventListener('click', () => downloadOrders('completed'));
+            elements.downloadRejected.addEventListener('click', () => downloadOrders('rejected'));
 
             // Produits
-            document.getElementById('add-product-btn').addEventListener('click', showAddProductModal);
+            document.getElementById('add-product-btn').addEventListener('click', () => showAddProductModal(null));
             document.getElementById('save-product-btn').addEventListener('click', saveProduct);
-            document.getElementById('cancel-product-btn').addEventListener('click', () => {
-                elements.productModal.style.display = 'none';
-            });
-
+            document.getElementById('cancel-product-btn').addEventListener('click', closeModals);
             document.getElementById('product-category-filter').addEventListener('change', filterProducts);
             document.getElementById('product-stock-filter').addEventListener('change', filterProducts);
             document.getElementById('product-search').addEventListener('input', filterProducts);
+            document.getElementById('product-main-image').addEventListener('input', previewMainImage);
+            document.getElementById('product-additional-images').addEventListener('input', previewAdditionalImages);
+            document.getElementById('add-image-btn').addEventListener('click', addImageInput);
+
+            // Stats
+            elements.deleteAllSales.addEventListener('click', deleteAllSales);
+
+            // Security
+            elements.deleteLog.addEventListener('click', deleteActivityLog);
+        }
+
+        function closeModals() {
+            document.querySelectorAll('.modal-overlay').forEach(modal => modal.style.display = 'none');
         }
 
         // Gestion de la connexion
-        function handleLogin() {
+        async function handleLogin() {
             const password = elements.loginPassword.value;
+            const action = password === adminPassword ? 'success' : 'failed';
+            await logActivity('Admin', `Tentative de connexion: ${action}`);
             
             if (password === adminPassword) {
-                // Enregistrer l'authentification
                 localStorage.setItem('adminAuth', JSON.stringify({
                     loggedIn: true,
                     timestamp: Date.now()
                 }));
-                
                 showApp();
                 loadData();
                 elements.loginError.style.display = 'none';
@@ -1244,6 +1454,19 @@
         function handleLogout() {
             localStorage.removeItem('adminAuth');
             showLogin();
+        }
+
+        // Accès sécurité
+        function handleSecurityLogin() {
+            const password = elements.securityPassword.value;
+            if (password === securityPassword) {
+                elements.securityContent.classList.remove('hidden');
+                elements.securityLoginBtn.style.display = 'none';
+                elements.securityPassword.style.display = 'none';
+                loadSecurityContent();
+            } else {
+                elements.securityError.style.display = 'block';
+            }
         }
 
         // Afficher l'application
@@ -1261,37 +1484,25 @@
 
         // Navigation entre les pages
         function navigateTo(pageId) {
-            // Mettre à jour le titre de la page
             elements.pageTitle.textContent = getPageTitle(pageId);
-            
-            // Masquer toutes les pages
-            elements.pages.forEach(page => {
-                page.classList.remove('active');
-            });
-            
-            // Afficher la page demandée
+            elements.pages.forEach(page => page.classList.remove('active'));
             document.getElementById(`${pageId}-page`).classList.add('active');
-            
-            // Mettre à jour la navigation
             elements.menuItems.forEach(item => {
                 item.classList.remove('active');
-                if (item.getAttribute('data-page') === pageId) {
+                if (item.getAttribute('data-page') === pageId || item.id === `${pageId}-menu`) {
                     item.classList.add('active');
                 }
             });
-            
-            // Charger les données spécifiques à la page
-            if (pageId === 'dashboard') {
-                loadDashboard();
-            } else if (pageId === 'orders') {
-                loadOrders();
-            } else if (pageId === 'products') {
-                loadProducts();
-            } else if (pageId === 'stats') {
-                loadStats();
-            } else if (pageId === 'security') {
-                loadSecurity();
+            if (pageId === 'dashboard') loadDashboard();
+            else if (pageId === 'orders') loadOrders();
+            else if (pageId === 'products') loadProducts();
+            else if (pageId === 'stats') loadStats();
+            else if (pageId === 'security') {
+                elements.securityContent.classList.add('hidden');
+                elements.securityLoginBtn.style.display = 'block';
+                elements.securityPassword.style.display = 'block';
             }
+            else if (pageId === 'notifications') loadNotifications();
         }
 
         // Obtenir le titre de la page
@@ -1301,7 +1512,8 @@
                 'orders': 'Gestion des commandes',
                 'products': 'Gestion des produits',
                 'stats': 'Statistiques de vente',
-                'security': 'Paramètres de sécurité'
+                'security': 'Paramètres de sécurité',
+                'notifications': 'Notifications'
             };
             return titles[pageId] || 'Tableau de bord';
         }
@@ -1309,292 +1521,135 @@
         // Chargement des données
         async function loadData() {
             try {
-                // Charger les paramètres de sécurité
                 const securityDoc = await db.collection('admin').doc('security').get();
                 if (securityDoc.exists) {
-                    const securityData = securityDoc.data();
-                    adminPassword = securityData.password || '0000';
-                    deleteCode = securityData.deleteCode || '0000';
+                    const data = securityDoc.data();
+                    adminPassword = data.password || '0000';
+                    deleteCode = data.deleteCode || '0000';
+                    securityPassword = data.securityPassword || '1111';
+                    elements.adminPasswordInput.value = adminPassword;
+                    elements.deleteCodeInput.value = deleteCode;
+                    elements.securityPasswordInput.value = securityPassword;
                 } else {
-                    // Créer les paramètres par défaut
                     await db.collection('admin').doc('security').set({
                         password: '0000',
-                        deleteCode: '0000'
+                        deleteCode: '0000',
+                        securityPassword: '1111'
                     });
                 }
-                
-                // Charger les commandes
+
                 const ordersSnapshot = await db.collection('orders').orderBy('date', 'desc').get();
-                orders = ordersSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                
-                // Charger les produits
+                orders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
                 const productsSnapshot = await db.collection('products').get();
-                products = productsSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                
-                // Charger les notifications
-                const notificationsSnapshot = await db.collection('notifications')
-                    .where('read', '==', false)
-                    .get();
-                
-                notifications = notificationsSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                
-                // Mettre à jour l'interface
+                products = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                const notificationsSnapshot = await db.collection('notifications').where('read', '==', false).get();
+                notifications = notificationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
                 updateNotifications();
                 loadDashboard();
-                
             } catch (error) {
-                console.error('Erreur de chargement des données:', error);
+                console.error('Erreur de chargement:', error);
+            }
+        }
+
+        // Notifications push (simulé, car pas de FCM ici)
+        function sendPushNotification(title, body) {
+            if (Notification.permission === 'granted') {
+                new Notification(title, { body });
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification(title, { body });
+                    }
+                });
             }
         }
 
         // Mettre à jour les notifications
         function updateNotifications() {
             elements.notificationCount.textContent = notifications.length;
+            if (notifications.length > 0) {
+                sendPushNotification('Nouvelle commande', 'Une commande en attente de validation.');
+            }
         }
 
         // Chargement du tableau de bord
         function loadDashboard() {
-            // Calculer les statistiques
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            
-            const todayOrdersCount = orders.filter(order => {
-                const orderDate = order.date.toDate();
-                return orderDate >= today && order.status === 'completed';
-            }).length;
-            
-            const todayRevenue = orders.filter(order => {
-                const orderDate = order.date.toDate();
-                return orderDate >= today && order.status === 'completed';
-            }).reduce((total, order) => total + order.total, 0);
-            
+            const todayOrdersCount = orders.filter(order => order.date.toDate() >= today && order.status === 'completed').length;
+            const todayRevenue = orders.filter(order => order.date.toDate() >= today && order.status === 'completed').reduce((sum, order) => sum + order.total, 0);
             const pendingOrdersCount = orders.filter(order => order.status === 'pending').length;
-            
             const lowStockCount = products.filter(product => product.stock < 5).length;
-            
-            // Mettre à jour les cartes
+
             elements.todayOrders.textContent = todayOrdersCount;
             elements.todayRevenue.textContent = `${todayRevenue.toLocaleString()} FCFA`;
             elements.pendingOrders.textContent = pendingOrdersCount;
             elements.lowStock.textContent = lowStockCount;
-            
-            // Mettre à jour les graphiques
+
             updateCharts();
-            
-            // Mettre à jour les commandes récentes
             updateRecentOrders();
         }
 
-        // Mettre à jour les graphiques
+        // Mettre à jour les graphiques (responsive)
         function updateCharts() {
-            // Données factices pour la démonstration
             const salesData = {
                 labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
-                datasets: [{
-                    label: 'Ventes (FCFA)',
-                    data: [120000, 190000, 150000, 210000, 180000, 250000, 220000],
-                    backgroundColor: 'rgba(20, 40, 160, 0.2)',
-                    borderColor: 'rgba(20, 40, 160, 1)',
-                    borderWidth: 2,
-                    tension: 0.4
-                }]
+                datasets: [{ label: 'Ventes (FCFA)', data: [120000, 190000, 150000, 210000, 180000, 250000, 220000], backgroundColor: 'rgba(20, 40, 160, 0.2)', borderColor: 'rgba(20, 40, 160, 1)', borderWidth: 2, tension: 0.4 }]
             };
-            
+
             const categoriesData = {
                 labels: ['iPhone', 'Samsung', 'Tecno', 'Écouteurs', 'Chargeurs'],
-                datasets: [{
-                    data: [35, 25, 15, 12, 13],
-                    backgroundColor: [
-                        'rgba(20, 40, 160, 0.7)',
-                        'rgba(255, 107, 0, 0.7)',
-                        'rgba(0, 102, 255, 0.7)',
-                        'rgba(58, 58, 58, 0.7)',
-                        'rgba(255, 102, 0, 0.7)'
-                    ]
-                }]
+                datasets: [{ data: [35, 25, 15, 12, 13], backgroundColor: ['rgba(20, 40, 160, 0.7)', 'rgba(255, 107, 0, 0.7)', 'rgba(0, 102, 255, 0.7)', 'rgba(58, 58, 58, 0.7)', 'rgba(255, 102, 0, 0.7)'] }]
             };
-            
-            // Créer ou mettre à jour le graphique des ventes
-            if (window.salesChart) {
-                window.salesChart.destroy();
-            }
-            
+
+            if (window.salesChart) window.salesChart.destroy();
             const salesCtx = elements.salesChart.getContext('2d');
-            window.salesChart = new Chart(salesCtx, {
-                type: 'line',
-                data: salesData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toLocaleString() + ' FCFA';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            
-            // Créer ou mettre à jour le graphique des catégories
-            if (window.categoriesChart) {
-                window.categoriesChart.destroy();
-            }
-            
+            window.salesChart = new Chart(salesCtx, { type: 'line', data: salesData, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString() + ' FCFA' } } } } });
+
+            if (window.categoriesChart) window.categoriesChart.destroy();
             const categoriesCtx = elements.categoriesChart.getContext('2d');
-            window.categoriesChart = new Chart(categoriesCtx, {
-                type: 'doughnut',
-                data: categoriesData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                        }
-                    }
-                }
-            });
+            window.categoriesChart = new Chart(categoriesCtx, { type: 'doughnut', data: categoriesData, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
         }
 
-        // Mettre à jour les commandes récentes
+        // Update recent orders
         function updateRecentOrders() {
-            const recentOrders = orders.slice(0, 5);
-            
-            if (recentOrders.length === 0) {
-                elements.recentOrders.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center">Aucune commande récente</td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            elements.recentOrders.innerHTML = '';
-            recentOrders.forEach(order => {
-                const orderDate = order.date.toDate();
-                const formattedDate = orderDate.toLocaleDateString('fr-FR');
-                
-                let statusClass = '';
-                if (order.status === 'completed') statusClass = 'text-success';
-                else if (order.status === 'rejected') statusClass = 'text-danger';
-                else statusClass = 'text-warning';
-                
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${order.id.substring(0, 8)}</td>
-                    <td>${order.customerName}</td>
-                    <td>${formattedDate}</td>
-                    <td>${order.total.toLocaleString()} FCFA</td>
-                    <td class="${statusClass}">${getStatusText(order.status)}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary view-order-btn" data-id="${order.id}">Voir</button>
-                    </td>
-                `;
-                
-                elements.recentOrders.appendChild(tr);
-            });
-            
-            // Ajouter les écouteurs d'événements pour les boutons "Voir"
-            document.querySelectorAll('.view-order-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const orderId = btn.getAttribute('data-id');
-                    showOrderDetails(orderId);
-                });
-            });
+            const recent = orders.slice(0, 5);
+            elements.recentOrders.innerHTML = recent.length ? recent.map(order => {
+                const date = order.date.toDate().toLocaleDateString('fr-FR');
+                const statusClass = order.status === 'completed' ? 'text-success' : order.status === 'rejected' ? 'text-danger' : 'text-warning';
+                return `<tr><td>${order.id.substring(0, 8)}</td><td>${order.customerName}</td><td>${date}</td><td>${order.total.toLocaleString()} FCFA</td><td class="${statusClass}">${getStatusText(order.status)}</td><td><button class="btn btn-sm btn-primary view-order-btn" data-id="${order.id}">Voir</button></td></tr>`;
+            }).join('') : '<tr><td colspan="6" class="text-center">Aucune commande récente</td></tr>';
+            document.querySelectorAll('.view-order-btn').forEach(btn => btn.addEventListener('click', e => showOrderDetails(e.target.dataset.id)));
         }
 
-        // Obtenir le texte du statut
         function getStatusText(status) {
-            const statuses = {
-                'pending': 'En attente',
-                'completed': 'Validée',
-                'rejected': 'Rejetée'
-            };
-            return statuses[status] || status;
+            return { pending: 'En attente', completed: 'Validée', rejected: 'Rejetée' }[status] || status;
         }
 
-        // Afficher les détails d'une commande
+        // Show order details
         function showOrderDetails(orderId) {
             const order = orders.find(o => o.id === orderId);
             if (!order) return;
-            
-            const orderDate = order.date.toDate();
-            const formattedDate = orderDate.toLocaleDateString('fr-FR');
-            
-            let itemsHtml = '';
-            order.items.forEach(item => {
-                itemsHtml += `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
-                        <div>
-                            <div style="font-weight: 500;">${item.product.name}</div>
-                            <div style="font-size: 0.9rem; color: #666;">${item.quantity} x ${item.product.salePrice || item.product.normalPrice} FCFA</div>
-                        </div>
-                        <div style="font-weight: 500;">${(item.quantity * (item.product.salePrice || item.product.normalPrice)).toLocaleString()} FCFA</div>
-                    </div>
-                `;
-            });
-            
+            const date = order.date.toDate().toLocaleDateString('fr-FR');
+            const itemsHtml = order.items.map(item => `<div style="display:flex;justify-content:space-between;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #eee;"><div><div style="font-weight:500;">${item.product.name}</div><div style="font-size:0.9rem;color:#666;">${item.quantity} x ${item.product.salePrice || item.product.normalPrice} FCFA</div></div><div style="font-weight:500;">${(item.quantity * (item.product.salePrice || item.product.normalPrice)).toLocaleString()} FCFA</div></div>`).join('');
             elements.orderDetailContent.innerHTML = `
-                <div style="margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                        <div>
-                            <div style="font-weight: 500;">N° de commande</div>
-                            <div>${order.id}</div>
-                        </div>
-                        <div>
-                            <div style="font-weight: 500;">Date</div>
-                            <div>${formattedDate}</div>
-                        </div>
+                <div style="margin-bottom:20px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:15px;">
+                        <div><div style="font-weight:500;">N° de commande</div><div>${order.id}</div></div>
+                        <div><div style="font-weight:500;">Date</div><div>${date}</div></div>
                     </div>
-                    
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-weight: 500;">Client</div>
-                        <div>${order.customerName}</div>
-                        <div>${order.customerPhone}</div>
-                        ${order.customerEmail ? `<div>${order.customerEmail}</div>` : ''}
-                        ${order.customerAddress ? `<div>${order.customerAddress}</div>` : ''}
-                    </div>
-                    
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-weight: 500;">Articles</div>
-                        ${itemsHtml}
-                    </div>
-                    
-                    <div style="border-top: 2px solid #eee; padding-top: 15px;">
-                        <div style="display: flex; justify-content: space-between; font-weight: 500;">
-                            <div>Total</div>
-                            <div>${order.total.toLocaleString()} FCFA</div>
-                        </div>
-                    </div>
+                    <div style="margin-bottom:15px;"><div style="font-weight:500;">Client</div><div>${order.customerName}</div><div>${order.customerPhone}</div>${order.customerEmail ? `<div>${order.customerEmail}</div>` : ''}${order.customerAddress ? `<div>${order.customerAddress}</div>` : ''}</div>
+                    <div style="margin-bottom:15px;"><div style="font-weight:500;">Articles</div>${itemsHtml}</div>
+                    <div style="border-top:2px solid #eee;padding-top:15px;"><div style="display:flex;justify-content:space-between;font-weight:500;"><div>Total</div><div>${order.total.toLocaleString()} FCFA</div></div></div>
                 </div>
             `;
-            
             elements.orderDetailModal.style.display = 'flex';
-            
-            // Configurer les boutons d'action
             document.getElementById('validate-order-btn').onclick = () => updateOrderStatus(orderId, 'completed');
             document.getElementById('reject-order-btn').onclick = () => updateOrderStatus(orderId, 'rejected');
-            document.getElementById('close-order-btn').onclick = () => {
-                elements.orderDetailModal.style.display = 'none';
-            };
-            
-            // Masquer les boutons si la commande n'est pas en attente
+            document.getElementById('close-order-btn').onclick = closeModals;
             if (order.status !== 'pending') {
                 document.getElementById('validate-order-btn').style.display = 'none';
                 document.getElementById('reject-order-btn').style.display = 'none';
@@ -1604,467 +1659,389 @@
             }
         }
 
-        // Mettre à jour le statut d'une commande
+        // Update order status
         async function updateOrderStatus(orderId, status) {
             try {
-                await db.collection('orders').doc(orderId).update({
-                    status: status
-                });
-                
-                // Mettre à jour localement
-                const orderIndex = orders.findIndex(o => o.id === orderId);
-                if (orderIndex !== -1) {
-                    orders[orderIndex].status = status;
+                await db.collection('orders').doc(orderId).update({ status });
+                const index = orders.findIndex(o => o.id === orderId);
+                if (index > -1) orders[index].status = status;
+                if (status !== 'pending') {
+                    const notifIndex = notifications.findIndex(n => n.orderId === orderId);
+                    if (notifIndex > -1) {
+                        await db.collection('notifications').doc(notifications[notifIndex].id).update({ read: true });
+                        notifications.splice(notifIndex, 1);
+                    }
                 }
-                
-                // Recharger les données
                 loadDashboard();
-                if (document.getElementById('orders-page').classList.contains('active')) {
-                    loadOrders();
-                }
-                
-                // Ferme  la modal
-                elements.orderDetailModal.style.display = 'none';
-                
+                if (document.getElementById('orders-page').classList.contains('active')) loadOrders();
+                if (document.getElementById('notifications-page').classList.contains('active')) loadNotifications();
+                closeModals();
                 showNotification(`Commande ${status === 'completed' ? 'validée' : 'rejetée'} avec succès`, 'success');
-                
+                sendPushNotification('Commande mise à jour', `Commande ${orderId} ${status === 'completed' ? 'validée' : 'rejetée'}.`);
             } catch (error) {
-                console.error('Erreur lors de la mise à jour du statut:', error);
-                showNotification('Erreur lors de la mise à jour du statut', 'error');
+                console.error('Erreur update status:', error);
+                showNotification('Erreur mise à jour', 'error');
             }
         }
 
-        // Chargement des commandes
+        // Load orders
         function loadOrders() {
             filterOrders();
         }
 
-        // Filtrage des commandes
+        // Filter orders
         function filterOrders() {
             const statusFilter = document.getElementById('order-status-filter').value;
             const searchText = document.getElementById('order-search').value.toLowerCase();
-            
-            let filteredOrders = orders;
-            
-            // Filtrer par statut
-            if (statusFilter !== 'all') {
-                filteredOrders = filteredOrders.filter(order => order.status === statusFilter);
-            }
-            
-            // Filtrer par recherche
-            if (searchText) {
-                filteredOrders = filteredOrders.filter(order => 
-                    order.id.toLowerCase().includes(searchText) ||
-                    order.customerName.toLowerCase().includes(searchText) ||
-                    order.customerPhone.toLowerCase().includes(searchText)
-                );
-            }
-            
-            // Afficher les commandes filtrées
-            displayOrders(filteredOrders);
+            let filtered = orders;
+            if (statusFilter !== 'all') filtered = filtered.filter(o => o.status === statusFilter);
+            if (searchText) filtered = filtered.filter(o => o.id.toLowerCase().includes(searchText) || o.customerName.toLowerCase().includes(searchText) || o.customerPhone.toLowerCase().includes(searchText));
+            displayOrders(filtered);
         }
 
-        // Affichage des commandes
+        // Display orders
         function displayOrders(ordersToDisplay) {
-            if (ordersToDisplay.length === 0) {
-                elements.ordersTable.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center">Aucune commande trouvée</td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            elements.ordersTable.innerHTML = '';
-            ordersToDisplay.forEach(order => {
-                const orderDate = order.date.toDate();
-                const formattedDate = orderDate.toLocaleDateString('fr-FR');
-                
-                let statusClass = '';
-                if (order.status === 'completed') statusClass = 'text-success';
-                else if (order.status === 'rejected') statusClass = 'text-danger';
-                else statusClass = 'text-warning';
-                
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${order.id}</td>
-                    <td>${order.customerName}</td>
-                    <td>${order.customerPhone}</td>
-                    <td>${formattedDate}</td>
-                    <td>${order.total.toLocaleString()} FCFA</td>
-                    <td class="${statusClass}">${getStatusText(order.status)}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary view-order-btn" data-id="${order.id}">Voir</button>
-                    </td>
-                `;
-                
-                elements.ordersTable.appendChild(tr);
-            });
-            
-            // Ajouter les écouteurs d'événements pour les boutons "Voir"
-            document.querySelectorAll('.view-order-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const orderId = btn.getAttribute('data-id');
-                    showOrderDetails(orderId);
-                });
-            });
+            elements.ordersTable.innerHTML = ordersToDisplay.length ? ordersToDisplay.map(order => {
+                const date = order.date.toDate().toLocaleDateString('fr-FR');
+                const statusClass = order.status === 'completed' ? 'text-success' : order.status === 'rejected' ? 'text-danger' : 'text-warning';
+                return `<tr><td>${order.id}</td><td>${order.customerName}</td><td>${order.customerPhone}</td><td>${date}</td><td>${order.total.toLocaleString()} FCFA</td><td class="${statusClass}">${getStatusText(order.status)}</td><td><button class="btn btn-sm btn-primary view-order-btn" data-id="${order.id}">Voir</button></td></tr>`;
+            }).join('') : '<tr><td colspan="7" class="text-center">Aucune commande trouvée</td></tr>';
+            document.querySelectorAll('.view-order-btn').forEach(btn => btn.addEventListener('click', e => showOrderDetails(e.target.dataset.id)));
         }
 
-        // Chargement des produits
+        // Download PDF
+        function downloadOrders(status) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const filteredOrders = orders.filter(o => o.status === status);
+            let y = 20;
+            doc.text('Liste des commandes ' + (status === 'completed' ? 'validées' : 'rejetées'), 20, y);
+            y += 10;
+            filteredOrders.forEach(order => {
+                doc.text(`ID: ${order.id} | Client: ${order.customerName} | Téléphone: ${order.customerPhone} | Date: ${order.date.toDate().toLocaleDateString('fr-FR')} | Montant: ${order.total} FCFA | Statut: ${getStatusText(order.status)}`, 20, y);
+                y += 10;
+                if (y > 280) {
+                    doc.addPage();
+                    y = 20;
+                }
+            });
+            doc.save(`commandes_${status}.pdf`);
+        }
+
+        // Load products
         function loadProducts() {
             filterProducts();
         }
 
-        // Filtrage des produits
+        // Filter products
         function filterProducts() {
             const categoryFilter = document.getElementById('product-category-filter').value;
             const stockFilter = document.getElementById('product-stock-filter').value;
             const searchText = document.getElementById('product-search').value.toLowerCase();
-            
-            let filteredProducts = products;
-            
-            // Filtrer par catégorie
-            if (categoryFilter !== 'all') {
-                filteredProducts = filteredProducts.filter(product => product.category === categoryFilter);
-            }
-            
-            // Filtrer par stock
+            let filtered = products;
+            if (categoryFilter !== 'all') filtered = filtered.filter(p => p.category === categoryFilter);
             if (stockFilter !== 'all') {
-                if (stockFilter === 'low') {
-                    filteredProducts = filteredProducts.filter(product => product.stock < 5);
-                } else if (stockFilter === 'medium') {
-                    filteredProducts = filteredProducts.filter(product => product.stock >= 5 && product.stock < 15);
-                } else if (stockFilter === 'high') {
-                    filteredProducts = filteredProducts.filter(product => product.stock >= 15);
-                }
+                if (stockFilter === 'low') filtered = filtered.filter(p => p.stock < 5);
+                else if (stockFilter === 'medium') filtered = filtered.filter(p => p.stock >= 5 && p.stock < 15);
+                else if (stockFilter === 'high') filtered = filtered.filter(p => p.stock >= 15);
             }
-            
-            // Filtrer par recherche
-            if (searchText) {
-                filteredProducts = filteredProducts.filter(product => 
-                    product.name.toLowerCase().includes(searchText) ||
-                    product.category.toLowerCase().includes(searchText) ||
-                    product.description.toLowerCase().includes(searchText)
-                );
-            }
-            
-            // Afficher les produits filtrés
-            displayProducts(filteredProducts);
+            if (searchText) filtered = filtered.filter(p => p.name.toLowerCase().includes(searchText) || p.category.toLowerCase().includes(searchText) || p.description.toLowerCase().includes(searchText));
+            displayProducts(filtered);
         }
 
-        // Affichage des produits
+        // Display products
         function displayProducts(productsToDisplay) {
-            if (productsToDisplay.length === 0) {
-                elements.productsGrid.innerHTML = `
-                    <div class="text-center">Aucun produit trouvé</div>
-                `;
-                return;
-            }
-            
-            elements.productsGrid.innerHTML = '';
-            productsToDisplay.forEach(product => {
-                let stockClass = 'stock-high';
-                let stockText = 'En stock';
-                
-                if (product.stock < 5) {
-                    stockClass = 'stock-low';
-                    stockText = 'Stock bas';
-                } else if (product.stock < 15) {
-                    stockClass = 'stock-medium';
-                    stockText = 'Stock moyen';
-                }
-                
-                const productCard = document.createElement('div');
-                productCard.className = 'product-card';
-                productCard.innerHTML = `
-                    <div class="product-image">
-                        ${product.images && product.images.length > 0 ? 
-                            `<img src="${product.images[0]}" alt="${product.name}">` : 
-                            `<i class="fas fa-box-open" style="font-size: 3rem; color: #ccc;"></i>`
-                        }
-                    </div>
-                    <div class="product-info">
-                        <div class="product-name">${product.name}</div>
-                        <div class="product-price">${(product.salePrice || product.normalPrice).toLocaleString()} FCFA</div>
-                        <div class="product-stock">
-                            <span>Stock: ${product.stock}</span>
-                            <span class="stock-badge ${stockClass}">${stockText}</span>
+            elements.productsGrid.innerHTML = productsToDisplay.length ? productsToDisplay.map(product => {
+                const stockClass = product.stock < 5 ? 'stock-low' : product.stock < 15 ? 'stock-medium' : 'stock-high';
+                const stockText = product.stock < 5 ? 'Stock bas' : product.stock < 15 ? 'Stock moyen' : 'En stock';
+                const price = product.salePrice || product.normalPrice;
+                const img = product.images && product.images.length ? `<img src="${product.images[0]}" alt="${product.name}">` : `<i class="fas fa-box-open" style="font-size:3rem;color:#ccc;"></i>`;
+                return `
+                    <div class="product-card">
+                        <div class="product-actions">
+                            <button class="btn btn-sm btn-primary edit-product-btn" data-id="${product.id}">Modifier</button>
+                            <button class="btn btn-sm btn-danger delete-product-btn" data-id="${product.id}">Supprimer</button>
+                        </div>
+                        <div class="product-image">${img}</div>
+                        <div class="product-info">
+                            <div class="product-name">${product.name}</div>
+                            <div class="product-price">${price.toLocaleString()} FCFA</div>
+                            <div class="product-stock"><span>Stock: ${product.stock}</span><span class="stock-badge ${stockClass}">${stockText}</span></div>
                         </div>
                     </div>
                 `;
-                
-                elements.productsGrid.appendChild(productCard);
-            });
+            }).join('') : '<div class="text-center">Aucun produit trouvé</div>';
+            document.querySelectorAll('.edit-product-btn').forEach(btn => btn.addEventListener('click', e => showAddProductModal(e.target.dataset.id)));
+            document.querySelectorAll('.delete-product-btn').forEach(btn => btn.addEventListener('click', e => deleteProduct(e.target.dataset.id)));
         }
 
-        // Afficher la modal d'ajout de produit
-        function showAddProductModal() {
-            // Réinitialiser le formulaire
-            document.getElementById('product-name').value = '';
-            document.getElementById('product-category').value = 'iphone';
-            document.getElementById('product-normal-price').value = '';
-            document.getElementById('product-sale-price').value = '';
-            document.getElementById('product-stock').value = '';
-            document.getElementById('product-images').value = '';
-            document.getElementById('product-description').value = '';
-            
+        // Show add/edit product modal
+        async function showAddProductModal(productId) {
+            editingProductId = productId;
+            const isEdit = !!productId;
+            document.getElementById('product-modal-title').textContent = isEdit ? 'Modifier le produit' : 'Ajouter un produit';
+            if (isEdit) {
+                const product = products.find(p => p.id === productId);
+                document.getElementById('product-name').value = product.name || '';
+                document.getElementById('product-brand').value = product.brand || '';
+                document.getElementById('product-category').value = product.category || 'iphone';
+                document.getElementById('product-normal-price').value = product.normalPrice || '';
+                document.getElementById('product-sale-price').value = product.salePrice || '';
+                document.getElementById('product-discount').value = product.discount || '';
+                document.getElementById('product-stock').value = product.stock || '';
+                document.getElementById('product-delivery').value = product.delivery || 'free';
+                document.getElementById('product-flash-sale').checked = product.flashSale || false;
+                document.getElementById('char-os').value = product.characteristics?.os || '';
+                document.getElementById('char-storage').value = product.characteristics?.storage || '';
+                document.getElementById('char-ram').value = product.characteristics?.ram || '';
+                document.getElementById('char-screen').value = product.characteristics?.screen || '';
+                document.getElementById('char-model').value = product.characteristics?.model || '';
+                document.getElementById('char-tech').value = product.characteristics?.tech || '';
+                document.getElementById('char-colors').value = product.characteristics?.colors || '';
+                document.getElementById('char-battery').value = product.characteristics?.battery || '';
+                document.getElementById('char-camera').value = product.characteristics?.camera || '';
+                document.getElementById('product-description').value = product.description || '';
+                document.getElementById('product-main-image').value = product.images?.[0] || '';
+                previewMainImage();
+                document.getElementById('product-additional-images').value = product.images?.slice(1).join(', ') || '';
+                previewAdditionalImages();
+            } else {
+                // Reset form
+                document.querySelectorAll('#product-modal input, #product-modal textarea, #product-modal select').forEach(el => el.value = el.type === 'checkbox' ? false : '');
+                document.getElementById('product-category').value = 'iphone';
+                document.getElementById('product-delivery').value = 'free';
+                document.querySelectorAll('.image-preview').forEach(el => el.innerHTML = '');
+            }
             elements.productModal.style.display = 'flex';
         }
 
-        // Sauvegarder un produit
+        // Preview images
+        function previewMainImage() {
+            const url = document.getElementById('product-main-image').value;
+            const preview = document.getElementById('main-image-preview');
+            preview.innerHTML = url ? `<img src="${url}" alt="Preview">` : '';
+        }
+
+        function previewAdditionalImages() {
+            const urls = document.getElementById('product-additional-images').value.split(',').map(u => u.trim()).filter(u => u);
+            const preview = document.getElementById('additional-images-preview');
+            preview.innerHTML = urls.map(u => `<img src="${u}" alt="Preview">`).join('');
+        }
+
+        function addImageInput() {
+            const input = document.createElement('input');
+            input.type = 'url';
+            input.className = 'form-control';
+            input.placeholder = 'https://...';
+            input.addEventListener('input', previewAdditionalImages);
+            document.getElementById('product-additional-images').parentNode.appendChild(input);
+        }
+
+        // Save product
         async function saveProduct() {
             const name = document.getElementById('product-name').value;
+            const brand = document.getElementById('product-brand').value;
             const category = document.getElementById('product-category').value;
             const normalPrice = parseInt(document.getElementById('product-normal-price').value);
             const salePrice = parseInt(document.getElementById('product-sale-price').value);
+            const discount = parseInt(document.getElementById('product-discount').value);
             const stock = parseInt(document.getElementById('product-stock').value);
-            const images = document.getElementById('product-images').value.split(',').map(url => url.trim());
+            const delivery = document.getElementById('product-delivery').value;
+            const flashSale = document.getElementById('product-flash-sale').checked;
+            const characteristics = {
+                os: document.getElementById('char-os').value,
+                storage: document.getElementById('char-storage').value,
+                ram: document.getElementById('char-ram').value,
+                screen: document.getElementById('char-screen').value,
+                model: document.getElementById('char-model').value,
+                tech: document.getElementById('char-tech').value,
+                colors: document.getElementById('char-colors').value,
+                battery: document.getElementById('char-battery').value,
+                camera: document.getElementById('char-camera').value
+            };
             const description = document.getElementById('product-description').value;
-            
+            const mainImage = document.getElementById('product-main-image').value;
+            const additionalImages = document.getElementById('product-additional-images').value.split(',').map(u => u.trim()).filter(u => u);
+            const images = mainImage ? [mainImage, ...additionalImages] : additionalImages;
+
             if (!name || !normalPrice || !stock) {
-                showNotification('Veuillez remplir tous les champs obligatoires', 'error');
+                showNotification('Champs obligatoires manquants', 'error');
                 return;
             }
-            
+
             try {
                 const productData = {
-                    name,
-                    category,
-                    normalPrice,
-                    stock,
-                    description,
-                    dateAdded: new Date()
+                    name, brand, category, normalPrice, stock, delivery, flashSale, characteristics, description, images, dateAdded: new Date()
                 };
-                
                 if (salePrice) productData.salePrice = salePrice;
-                if (images.length > 0) productData.images = images;
-                
-                await db.collection('products').add(productData);
-                
-                // Recharger les produits
+                if (discount) productData.discount = discount;
+
+                if (editingProductId) {
+                    await db.collection('products').doc(editingProductId).update(productData);
+                } else {
+                    await db.collection('products').add(productData);
+                }
+
                 const productsSnapshot = await db.collection('products').get();
-                products = productsSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                
-                // Mettre à jour l'affichage
+                products = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 filterProducts();
-                
-                // Fermer la modal
-                elements.productModal.style.display = 'none';
-                
-                showNotification('Produit ajouté avec succès', 'success');
-                
+                closeModals();
+                showNotification(`${editingProductId ? 'Produit mis à jour' : 'Produit ajouté'} avec succès`, 'success');
+                await logActivity('Admin', `${editingProductId ? 'Mise à jour' : 'Ajout'} du produit ${name}`);
             } catch (error) {
-                console.error('Erreur lors de l\'ajout du produit:', error);
-                showNotification('Erreur lors de l\'ajout du produit', 'error');
+                console.error('Erreur save product:', error);
+                showNotification('Erreur sauvegarde produit', 'error');
             }
         }
 
-        // Chargement des statistiques
+        // Delete product
+        async function deleteProduct(productId) {
+            document.getElementById('delete-confirm-modal').dataset.target = 'product';
+            document.getElementById('delete-confirm-modal').dataset.id = productId;
+            elements.deleteConfirmModal.style.display = 'flex';
+            document.getElementById('confirm-delete-btn').onclick = confirmDeleteProduct;
+        }
+
+        async function confirmDeleteProduct() {
+            const code = document.getElementById('delete-confirm-code').value;
+            if (code !== deleteCode) {
+                showNotification('Code de suppression incorrect', 'error');
+                return;
+            }
+            const productId = elements.deleteConfirmModal.dataset.id;
+            try {
+                await db.collection('products').doc(productId).delete();
+                const productsSnapshot = await db.collection('products').get();
+                products = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                filterProducts();
+                closeModals();
+                showNotification('Produit supprimé', 'success');
+                await logActivity('Admin', `Suppression du produit ID ${productId}`);
+            } catch (error) {
+                console.error('Erreur delete product:', error);
+                showNotification('Erreur suppression', 'error');
+            }
+        }
+
+        // Load stats
         function loadStats() {
-            // Données factices pour la démonstration
+            // Fictive data
             elements.statsOrders.textContent = '42';
             elements.statsRevenue.textContent = '1 250 000 FCFA';
             elements.statsProductsSold.textContent = '78';
             elements.statsAvgCart.textContent = '29 762 FCFA';
-            
-            // Mettre à jour les graphiques des statistiques
             updateStatsCharts();
-            
-            // Mettre à jour les détails des ventes
             updateSalesDetails();
         }
 
-        // Mettre à jour les graphiques des statistiques
+        // Update stats charts (responsive)
         function updateStatsCharts() {
-            // Données factices pour la démonstration
-            const statsSalesData = {
-                labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'],
-                datasets: [{
-                    label: 'Ventes (FCFA)',
-                    data: [1200000, 1900000, 1500000, 2100000, 1800000, 2500000, 2200000, 2400000, 2300000, 2600000, 2800000, 3000000],
-                    backgroundColor: 'rgba(20, 40, 160, 0.2)',
-                    borderColor: 'rgba(20, 40, 160, 1)',
-                    borderWidth: 2,
-                    tension: 0.4
-                }]
-            };
-            
-            const statsProductsData = {
-                labels: ['iPhone 13', 'Samsung S22', 'AirPods Pro', 'Chargeur USB-C', 'PowerBank'],
-                datasets: [{
-                    label: 'Quantité vendue',
-                    data: [25, 18, 15, 12, 8],
-                    backgroundColor: 'rgba(255, 107, 0, 0.7)',
-                    borderColor: 'rgba(255, 107, 0, 1)',
-                    borderWidth: 1
-                }]
-            };
-            
-            // Créer ou mettre à jour le graphique des ventes
-            if (window.statsSalesChart) {
-                window.statsSalesChart.destroy();
-            }
-            
+            const salesData = { labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'], datasets: [{ label: 'Ventes (FCFA)', data: [1200000,1900000,1500000,2100000,1800000,2500000,2200000,2400000,2300000,2600000,2800000,3000000], backgroundColor: 'rgba(20, 40, 160, 0.2)', borderColor: 'rgba(20, 40, 160, 1)', borderWidth: 2, tension: 0.4 }] };
+            const productsData = { labels: ['iPhone 13', 'Samsung S22', 'AirPods Pro', 'Chargeur USB-C', 'PowerBank'], datasets: [{ label: 'Quantité vendue', data: [25,18,15,12,8], backgroundColor: 'rgba(255, 107, 0, 0.7)', borderColor: 'rgba(255, 107, 0, 1)', borderWidth: 1 }] };
+
+            if (window.statsSalesChart) window.statsSalesChart.destroy();
             const statsSalesCtx = document.getElementById('stats-sales-chart').getContext('2d');
-            window.statsSalesChart = new Chart(statsSalesCtx, {
-                type: 'bar',
-                data: statsSalesData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return (value / 1000000).toFixed(1) + ' M';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            
-            // Créer ou mettre à jour le graphique des produits
-            if (window.statsProductsChart) {
-                window.statsProductsChart.destroy();
-            }
-            
+            window.statsSalesChart = new Chart(statsSalesCtx, { type: 'bar', data: salesData, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { callback: v => (v / 1000000).toFixed(1) + ' M' } } } } });
+
+            if (window.statsProductsChart) window.statsProductsChart.destroy();
             const statsProductsCtx = document.getElementById('stats-products-chart').getContext('2d');
-            window.statsProductsChart = new Chart(statsProductsCtx, {
-                type: 'bar',
-                data: statsProductsData,
-                options: {
-                    responsive: true,
-                    indexAxis: 'y',
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    }
-                }
-            });
+            window.statsProductsChart = new Chart(statsProductsCtx, { type: 'bar', data: productsData, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { position: 'top' } } } });
         }
 
-        // Mettre à jour les détails des ventes
+        // Update sales details
         function updateSalesDetails() {
-            // Données factices pour la démonstration
-            const salesDetailsData = [
-                { product: 'iPhone 13', quantity: 25, revenue: 1250000, stock: 12 },
-                { product: 'Samsung S22', quantity: 18, revenue: 900000, stock: 8 },
-                { product: 'AirPods Pro', quantity: 15, revenue: 450000, stock: 5 },
-                { product: 'Chargeur USB-C', quantity: 12, revenue: 60000, stock: 20 },
-                { product: 'PowerBank', quantity: 8, revenue: 160000, stock: 15 }
-            ];
-            
-            elements.salesDetails.innerHTML = '';
-            salesDetailsData.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${item.product}</td>
-                    <td>${item.quantity}</td>
-                    <td>${item.revenue.toLocaleString()} FCFA</td>
-                    <td>${item.stock}</td>
-                `;
-                elements.salesDetails.appendChild(tr);
-            });
+            const data = [{ product: 'iPhone 13', quantity: 25, revenue: 1250000, stock: 12 }, { product: 'Samsung S22', quantity: 18, revenue: 900000, stock: 8 }, { product: 'AirPods Pro', quantity: 15, revenue: 450000, stock: 5 }, { product: 'Chargeur USB-C', quantity: 12, revenue: 60000, stock: 20 }, { product: 'PowerBank', quantity: 8, revenue: 160000, stock: 15 }];
+            elements.salesDetails.innerHTML = data.map(item => `<tr><td>${item.product}</td><td>${item.quantity}</td><td>${item.revenue.toLocaleString()} FCFA</td><td>${item.stock}</td></tr>`).join('');
         }
 
-        // Chargement des paramètres de sécurité
-        function loadSecurity() {
-            elements.adminPasswordInput.value = adminPassword;
-            elements.deleteCodeInput.value = deleteCode;
-            
-            // Charger le journal d'activité (factice pour la démonstration)
-            elements.activityLog.innerHTML = `
-                <tr>
-                    <td>01/10/2023 09:15</td>
-                    <td>Admin</td>
-                    <td>Connexion à l'application</td>
-                </tr>
-                <tr>
-                    <td>01/10/2023 10:30</td>
-                    <td>Admin</td>
-                    <td>Validation de la commande ST123456</td>
-                </tr>
-                <tr>
-                    <td>01/10/2023 11:45</td>
-                    <td>Admin</td>
-                    <td>Ajout du produit iPhone 13</td>
-                </tr>
-            `;
+        // Delete all sales (fictive)
+        async function deleteAllSales() {
+            if (confirm('Supprimer tous les détails des ventes?')) {
+                elements.salesDetails.innerHTML = '<tr><td colspan="4" class="text-center">Aucune donnée</td></tr>';
+                showNotification('Détails des ventes supprimés', 'success');
+            }
         }
 
-        // Sauvegarder les paramètres de sécurité
+        // Load notifications
+        function loadNotifications() {
+            elements.notificationsList.innerHTML = notifications.length ? notifications.map(notif => {
+                const order = orders.find(o => o.id === notif.orderId);
+                if (!order) return '';
+                return `<div class="notification-item"><h4>Commande ${order.id}</h4><p>Client: ${order.customerName} - Montant: ${order.total} FCFA</p><button class="btn btn-primary" onclick="showOrderDetails('${order.id}')">Voir détails</button></div>`;
+            }).join('') : '<div class="text-center">Aucune notification</div>';
+        }
+
+        // Load security content
+        async function loadSecurityContent() {
+            const logSnapshot = await db.collection('activityLog').orderBy('timestamp', 'desc').limit(50).get();
+            elements.activityLog.innerHTML = logSnapshot.docs.length ? logSnapshot.docs.map(doc => {
+                const data = doc.data();
+                return `<tr><td>${data.timestamp.toDate().toLocaleString('fr-FR')}</td><td>${data.user}</td><td>${data.action}</td></tr>`;
+            }).join('') : '<tr><td colspan="3" class="text-center">Aucune activité récente</td></tr>';
+        }
+
+        // Save security
         async function saveSecuritySettings() {
-            const newPassword = elements.adminPasswordInput.value;
+            const newAdminPass = elements.adminPasswordInput.value;
             const newDeleteCode = elements.deleteCodeInput.value;
-            
-            if (!newPassword || !newDeleteCode) {
-                showNotification('Veuillez remplir tous les champs', 'error');
+            const newSecPass = elements.securityPasswordInput.value;
+            if (!newAdminPass || !newDeleteCode || !newSecPass) {
+                showNotification('Champs obligatoires', 'error');
                 return;
             }
-            
             try {
-                await db.collection('admin').doc('security').set({
-                    password: newPassword,
-                    deleteCode: newDeleteCode
-                });
-                
-                adminPassword = newPassword;
+                await db.collection('admin').doc('security').update({ password: newAdminPass, deleteCode: newDeleteCode, securityPassword: newSecPass });
+                adminPassword = newAdminPass;
                 deleteCode = newDeleteCode;
-                
-                showNotification('Paramètres de sécurité enregistrés', 'success');
-                
+                securityPassword = newSecPass;
+                showNotification('Paramètres enregistrés', 'success');
+                await logActivity('Admin', 'Mise à jour des paramètres de sécurité');
             } catch (error) {
-                console.error('Erreur lors de la sauvegarde des paramètres:', error);
-                showNotification('Erreur lors de la sauvegarde des paramètres', 'error');
+                console.error('Erreur save security:', error);
+                showNotification('Erreur sauvegarde', 'error');
             }
         }
 
-        // Afficher une notification
-        function showNotification(message, type = 'info') {
-            // Créer l'élément de notification
-            const notification = document.createElement('div');
-            notification.style.position = 'fixed';
-            notification.style.bottom = '20px';
-            notification.style.right = '20px';
-            notification.style.padding = '10px 20px';
-            notification.style.borderRadius = '5px';
-            notification.style.color = 'white';
-            notification.style.zIndex = '3000';
-            notification.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.2)';
-            
-            if (type === 'success') {
-                notification.style.background = 'var(--success)';
-            } else if (type === 'error') {
-                notification.style.background = 'var(--danger)';
-            } else if (type === 'warning') {
-                notification.style.background = 'var(--warning)';
+        // Log activity
+        async function logActivity(user, action) {
+            await db.collection('activityLog').add({ user, action, timestamp: new Date() });
+        }
+
+        // Delete activity log
+        async function deleteActivityLog() {
+            const code = prompt('Code de suppression pour journal:');
+            if (code === deleteCode) {
+                const snapshot = await db.collection('activityLog').get();
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                loadSecurityContent();
+                showNotification('Journal supprimé', 'success');
+                await logActivity('Admin', 'Suppression du journal d\'activité');
             } else {
-                notification.style.background = 'var(--info)';
+                showNotification('Code incorrect', 'error');
             }
-            
-            notification.textContent = message;
-            
-            // Ajouter à la page
-            document.body.appendChild(notification);
-            
-            // Supprimer après 3 secondes
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 3000);
         }
 
-        // Initialiser l'application
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notif = document.createElement('div');
+            notif.style.cssText = `position:fixed;bottom:20px;right:20px;padding:10px 20px;border-radius:5px;color:white;z-index:3000;box-shadow:0 3px 10px rgba(0,0,0,0.2);background:${type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : type === 'warning' ? 'var(--warning)' : 'var(--info)'};`;
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            setTimeout(() => document.body.removeChild(notif), 3000);
+        }
+
+        // Confirm delete general
+        document.getElementById('confirm-delete-btn').addEventListener('click', () => {
+            const target = elements.deleteConfirmModal.dataset.target;
+            if (target === 'product') confirmDeleteProduct();
+        });
+        document.getElementById('cancel-delete-btn').addEventListener('click', closeModals);
+
+        // Init
         initApp();
+        if ('Notification' in window) Notification.requestPermission();
     </script>
 </body>
 </html>
